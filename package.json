@@ -1,0 +1,15 @@
+{
+  "name": "bloom-backend",
+  "version": "1.0.0",
+  "description": "Real Claude-powered AI Insights engine for the Bloom check-in app prototype",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

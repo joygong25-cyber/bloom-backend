@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom — 4 Pillars + Buddy (v2)</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #faf6ee;
+    --surface-1:      #ffffff;
+    --surface-2:      #f1ebdf;
+    --text-primary:   #2c2a24;
+    --text-secondary: #6b6656;
+    --muted:          #948e7c;
+    --gridline:       #ece5d5;
+    --baseline:       #ddd4bf;
+    --border:         rgba(60,50,20,0.09);
+    --series-1:       #3d84d6;
+    --accent:         #14a892;
+    --accent-soft:    rgba(20,168,146,0.14);
+    --good:           #2f9e44;
+    --warning:        #d98c0a;
+    --critical:       #dd5b5b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #e9e3d3; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 28px 12px;
+  }
+  .phone {
+    width: 380px; max-width: 100%; height: 800px; max-height: 92vh;
+    background: var(--page); border-radius: 40px;
+    box-shadow: 0 30px 60px rgba(60,50,20,0.22), 0 0 0 10px #fffefb, 0 0 0 11px rgba(60,50,20,0.14);
+    overflow: hidden; display: flex; flex-direction: column; position: relative;
+  }
+  .statusbar { padding: 14px 22px 2px; display:flex; justify-content:space-between; font-size:12px; color: var(--muted); font-weight:600; }
+  .app-header { padding: 6px 20px 4px; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  main { flex: 1; overflow-y: auto; padding: 4px 20px 18px; }
+  main::-webkit-scrollbar { width: 0; }
+
+  .hero { display:flex; flex-direction:column; align-items:center; padding: 8px 0 2px; }
+  .ring-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .ring-zone { font-size: 12px; font-weight: 700; margin-top: 8px; display:flex; align-items:center; gap:6px; }
+  .ring-zone .dot { width:8px; height:8px; border-radius:50%; }
+
+  .pillar-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+  .pillar-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 14px; display:flex; flex-direction:column; align-items:center; cursor:pointer; }
+  .pillar-card .pname { font-size: 11px; font-weight: 700; text-transform:uppercase; letter-spacing:0.04em; color: var(--text-secondary); margin-top: 8px; }
+
+  .checkin-cta { width: 100%; border: none; border-radius: 16px; padding: 15px; font-size: 14.5px; font-weight: 700; color: #00120e; background: var(--accent); cursor: pointer; margin: 4px 0 14px; }
+  .checkin-cta.done { background: var(--surface-2); color: var(--good); border: 1.5px solid var(--good); }
+
+  /* Pet card (consolidates streak + points + pet) */
+  .pet-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; margin-bottom: 14px; display:flex; align-items:center; gap: 12px; cursor:pointer; }
+  .pet-avatar { width: 52px; height: 52px; border-radius: 50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; filter: drop-shadow(0 3px 4px rgba(60,50,20,0.18)); }
+  .pet-avatar .accessory { position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size: 20px; filter: drop-shadow(0 2px 2px rgba(60,50,20,0.25)); }
+  .pet-info { flex: 1; min-width: 0; }
+  .pet-info .toprow { display:flex; align-items:center; justify-content:space-between; }
+  .pet-info .pname2 { font-size: 13.5px; font-weight: 800; color: var(--text-primary); }
+  .pet-info .lvl { font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; }
+  .xp-track { width:100%; height: 6px; background: var(--surface-2); border-radius: 999px; margin-top: 6px; overflow:hidden; }
+  .xp-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+  .pet-stats { display:flex; gap: 10px; margin-top: 5px; font-size: 11px; color: var(--muted); font-weight:600; }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 16px 18px; margin-bottom: 14px; }
+  .card h3 { margin: 0 0 8px; font-size: 12px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color: var(--muted); }
+  .card p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.45; }
+
+  .tabbar { display:flex; border-top: 1px solid var(--border); background: var(--surface-1); }
+  .tabbar button { flex:1; border:none; background:none; padding: 9px 2px 12px; font-size: 9.5px; font-weight:700; color: var(--muted); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; letter-spacing:0.01em; text-transform:uppercase; }
+  .tabbar button .ic { font-size: 17px; }
+  .tabbar button.active { color: var(--accent); }
+
+  h2.page-title { font-size: 11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color: var(--muted); margin: 6px 0 14px; }
+
+  .back-row { display:flex; align-items:center; gap: 10px; margin: 2px 0 10px; cursor:pointer; }
+  .back-row .arrow { font-size: 16px; color: var(--text-primary); }
+  .back-row .btitle { font-size: 13px; font-weight: 700; color: var(--text-primary); text-transform:uppercase; letter-spacing:0.04em; }
+
+  /* AI Insights */
+  .ai-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; margin-bottom: 14px; display:flex; align-items:center; gap: 12px; cursor:pointer; position:relative; }
+  .ai-card .ai-ic { font-size: 22px; width:40px; height:40px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ai-card .ai-body { flex:1; min-width:0; }
+  .ai-card .ai-title { font-size: 12.5px; font-weight:800; color: var(--text-primary); }
+  .ai-card .ai-sub { font-size: 11px; color: var(--muted); margin-top:2px; }
+  .ai-card .ai-dot { position:absolute; top:12px; right:14px; width:8px; height:8px; border-radius:50%; background: var(--warning); }
+  .ai-banner { background: var(--surface-2); border: 1px dashed var(--border); border-radius: 14px; padding: 12px 14px; font-size: 11.5px; color: var(--muted); line-height:1.5; margin-bottom: 14px; }
+  .alert-card { display:flex; gap: 12px; padding: 14px 16px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 10px; }
+  .alert-card .a-ic { font-size: 18px; flex-shrink:0; margin-top:1px; }
+  .alert-card .a-text { font-size: 13px; color: var(--text-primary); line-height:1.45; }
+  .alert-card .a-time { font-size: 10px; color: var(--muted); font-weight:700; text-transform:uppercase; margin-top:5px; }
+  .narrative-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; }
+  .narrative-text strong { color: var(--text-primary); }
+
+  .stat-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; }
+  .stat-tile .val { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+  .stat-tile .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em; }
+
+  .week-strip { display:flex; gap: 6px; margin-bottom: 4px; }
+  .week-day { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .week-day .bar { width: 100%; height: 34px; border-radius: 8px; display:flex; align-items:flex-end; padding:2px; }
+  .week-day .lbl { font-size: 9.5px; color: var(--muted); font-weight:700; text-transform:uppercase; }
+
+  .chart-wrap { position: relative; }
+  .chart-toolbar { display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; }
+  .chart-toolbar .title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .chart-toolbar button { font-size: 10.5px; font-weight: 700; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  svg.linechart { width: 100%; height: 140px; overflow: visible; }
+  .tooltip { position: absolute; background: #fff; color: #000; font-size: 11px; padding: 6px 9px; border-radius: 8px; pointer-events: none; white-space: nowrap; transform: translate(-50%, -115%); opacity: 0; transition: opacity .1s; z-index: 5; font-weight:600; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data-table th, table.data-table td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--gridline); color: var(--text-secondary); }
+  table.data-table th { color: var(--muted); font-weight: 700; text-transform:uppercase; font-size:10px; }
+  .insight { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--gridline); }
+  .row:last-child { border-bottom: none; }
+  .row .lbl { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  .row .desc { font-size: 11px; color: var(--muted); margin-top: 2px; max-width: 220px; }
+  .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; inset:0; background: var(--gridline); border-radius: 999px; cursor:pointer; transition: .2s; }
+  .toggle-slider:before { content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+  input:checked + .toggle-slider { background: var(--accent); }
+  input:checked + .toggle-slider:before { transform: translateX(18px); }
+  input[type="time"] { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); }
+  input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); font-size: 14px; margin-top: 6px; }
+
+  .reminder-item { display:flex; align-items:center; justify-content:space-between; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin-top: 8px; font-size: 12px; color: var(--text-primary); }
+  .reminder-item button { background:none; border:none; color:var(--critical); font-size:14px; cursor:pointer; }
+  .add-btn { margin-top: 10px; width: 100%; padding: 10px; border-radius: 12px; border: 1px dashed var(--muted); background: none; color: var(--text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+  /* Buddy / pet page */
+  .pet-stage { display: flex; align-items: center; justify-content: center; padding: 10px 0 4px; }
+  .pet-body { width: 108px; height: 108px; border-radius: 50%; position: relative; display:flex; align-items:center; justify-content:center; filter: drop-shadow(0 6px 8px rgba(60,50,20,0.2)); }
+  .pet-body .accessory { position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size: 30px; filter: drop-shadow(0 2px 3px rgba(60,50,20,0.25)); }
+  .swatch-row { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+  .swatch.selected { border-color: var(--accent); }
+  .acc-row { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .acc-btn { padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); font-size: 17px; cursor: pointer; position: relative; }
+  .acc-btn.selected { border-color: var(--accent); border-width: 2px; }
+  .acc-btn.locked { opacity: 0.3; cursor: not-allowed; }
+  .acc-btn .lock-badge { position:absolute; bottom:-4px; right:-4px; font-size: 9px; }
+  .badge-grid { display:grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 8px; }
+  .badge-item { display:flex; flex-direction:column; align-items:center; gap:4px; padding: 10px 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+  .badge-item .bic { font-size: 22px; }
+  .badge-item.locked { opacity: 0.3; }
+  .badge-item .blbl { font-size: 8.5px; color: var(--muted); font-weight:700; text-transform:uppercase; text-align:center; }
+
+  /* Full-screen check-in */
+  .checkin-screen { position: absolute; inset: 0; background: var(--page); z-index: 25; display:flex; flex-direction:column; }
+  .checkin-header { display:flex; align-items:center; justify-content:space-between; padding: 20px 20px 4px; flex-shrink:0; }
+  .checkin-close { background:none; border:none; color: var(--muted); font-size: 22px; cursor:pointer; line-height:1; padding: 4px; }
+  .checkin-content { flex:1; overflow-y:auto; padding: 8px 24px 4px; display:flex; flex-direction:column; }
+  .checkin-footer { padding: 12px 20px 26px; flex-shrink:0; }
+
+  .step-dots { display:flex; justify-content:center; gap: 6px; margin-bottom: 8px; }
+  .step-dots .sdot { width: 7px; height: 7px; border-radius:50%; background: var(--gridline); }
+  .step-dots .sdot.done { background: var(--accent); }
+  .step-dots .sdot.current { background: var(--accent); width:16px; border-radius:4px; }
+
+  .q-body { flex: 1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding: 10px 0; }
+  .q-icon { font-size: 42px; margin-bottom: 14px; }
+  .q-text { font-size: 19px; font-weight: 800; color: var(--text-primary); line-height:1.4; margin-bottom: 30px; padding: 0 6px; }
+
+  /* Richer pillar-step layout: live ring + yesterday comparison up top, then question, widget, follow-up chips, note */
+  .q-body-rich { flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; padding: 4px 0 10px; }
+  .q-topline { display:flex; flex-direction:column; align-items:center; margin-bottom: 18px; }
+  .live-ring-wrap { position:relative; display:inline-flex; align-items:center; justify-content:center; }
+  .live-ring-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size: 26px; font-weight: 800; }
+  .q-topline .plabel { font-size: 11px; font-weight: 700; letter-spacing:0.06em; text-transform:uppercase; color: var(--muted); margin-top: 8px; }
+  .q-compare { font-size: 11.5px; color: var(--muted); font-weight:600; margin-top: 4px; display:flex; align-items:center; gap:5px; }
+  .q-compare .ydot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .q-text-rich { font-size: 17px; font-weight: 800; color: var(--text-primary); line-height:1.4; margin-bottom: 24px; padding: 0 4px; }
+
+  .emoji-row { display:flex; justify-content:space-between; gap: 8px; width:100%; }
+  .emoji-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding: 16px 4px; border-radius: 16px; border: 1.5px solid var(--border); background: var(--surface-2); cursor:pointer; font-size: 28px; }
+  .emoji-btn .elbl { font-size: 9.5px; color: var(--text-secondary); font-weight:700; text-transform:uppercase; }
+  .emoji-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
+
+  .rating-row { display:flex; justify-content:center; gap: 14px; }
+  .rating-icon { font-size: 42px; background:none; border:none; cursor:pointer; opacity: 0.28; transition: opacity .15s, transform .1s; padding:0; }
+  .rating-icon.filled { opacity: 1; transform: scale(1.1); }
+  .rating-caption { margin-top: 20px; font-size: 15px; font-weight: 700; color: var(--accent); min-height: 20px; }
+
+  .slider-wrap { width: 100%; padding: 0 4px; }
+  .slider-caption { font-size: 18px; font-weight: 800; color: var(--accent); margin-bottom: 22px; min-height: 24px; }
+  input[type="range"].pillar-range { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 999px; background: var(--surface-2); outline:none; }
+  input[type="range"].pillar-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); border: 4px solid var(--surface-1); cursor:pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+  input[type="range"].pillar-range::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); border: 4px solid var(--surface-1); cursor:pointer; }
+  .slider-endlabels { display:flex; justify-content:space-between; margin-top: 10px; font-size: 9.5px; color: var(--muted); font-weight:700; text-transform:uppercase; }
+
+  /* Follow-up "what's contributing" chips — reveal after an answer is picked */
+  .chip-section { width:100%; margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--gridline); }
+  .chip-prompt { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom: 10px; }
+  .chip-row { display:flex; flex-wrap:wrap; gap: 8px; justify-content:center; }
+  .chip { padding: 8px 13px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface-2); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor:pointer; }
+  .chip.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+  textarea { width:100%; min-height: 90px; border-radius:14px; border:1px solid var(--border); background: var(--surface-2); color: var(--text-primary); padding: 12px 14px; font-size: 14px; font-family: inherit; resize: none; }
+  .note-toggle { margin-top: 20px; background:none; border:none; color: var(--accent); font-size: 12.5px; font-weight: 700; cursor:pointer; padding: 6px 10px; }
+  .note-area-wrap { width:100%; margin-top: 14px; }
+  .note-area-wrap textarea { min-height: 70px; }
+
+  .modal-actions { display:flex; gap: 10px; }
+  .btn-primary, .btn-secondary { flex:1; padding: 15px; border-radius: 14px; font-size: 15px; font-weight: 700; cursor:pointer; border: none; }
+  .btn-primary { background: var(--accent); color: #00120e; }
+  .btn-primary:disabled { opacity: 0.35; cursor:not-allowed; }
+  .btn-secondary { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+
+  .toast { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: #fff; color: #000; font-size: 12.5px; font-weight: 700; padding: 10px 16px; border-radius: 999px; z-index: 30; opacity:0; pointer-events:none; transition: opacity .2s, top .2s; box-shadow: 0 8px 18px rgba(0,0,0,0.5); max-width: 85%; text-align:center; }
+  .toast.show { opacity: 1; top: 30px; }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <div class="toast" id="toast"></div>
+  <div class="statusbar"><span id="statusClock">9:41</span><span>100%</span></div>
+  <div class="app-header"><div class="tag">Bloom · Burnout-risk pillars</div></div>
+
+  <main id="view-home"></main>
+  <main id="view-trends" hidden></main>
+  <main id="view-journal" hidden></main>
+  <main id="view-pet" hidden></main>
+  <main id="view-settings" hidden></main>
+  <main id="view-detail" hidden></main>
+  <main id="view-insights" hidden></main>
+  <main id="view-practicelog" hidden></main>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="home" class="active"><span class="ic">◎</span>Home</button>
+    <button data-tab="trends"><span class="ic">↗</span>Trends</button>
+    <button data-tab="journal"><span class="ic">✎</span>Journal</button>
+    <button data-tab="pet"><span class="ic">☺</span>Buddy</button>
+    <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
+  </nav>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DAY_MS = 86400000;
+  // Open the file with ?demo=1 to preview it pre-populated with sample data (handy for
+  // screenshots/demos). Anyone opening the real link starts genuinely empty — no fake
+  // history, no fake streak — since this is meant for real testers, not a canned demo.
+  var DEMO_MODE = /(^|[?&])demo=1(&|$)/.test(location.search);
+  // Seeded/demo data is built relative to real "now" so it always looks like the last 14
+  // days ending yesterday, leaving "today" open for a real check-in.
+  var demoBaseTs = (function(){ var d = new Date(); d.setHours(12,0,0,0); return d.getTime() - 14*DAY_MS; })();
+
+  // ---- Real calendar-day helpers (local time, not UTC) — needed because this now runs for
+  // real testers in their own timezone over multiple real days, not a single simulated day.
+  function localDayKey(ts){ var d=new Date(ts); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+  function isSameLocalDay(ts1, ts2){ return localDayKey(ts1) === localDayKey(ts2); }
+  function daysBetweenLocal(ts1, ts2){
+    var d1 = new Date(ts1); d1.setHours(0,0,0,0);
+    var d2 = new Date(ts2); d2.setHours(0,0,0,0);
+    return Math.round((d2.getTime() - d1.getTime()) / DAY_MS);
+  }
+
+  var LEVELS = [
+    {v:1, score:15}, {v:2, score:38}, {v:3, score:58}, {v:4, score:80}, {v:5, score:97}
+  ];
+
+  // 4 pillars grounded in athlete-burnout research (Athlete Burnout Questionnaire's
+  // exhaustion / reduced-accomplishment / devaluation dimensions, plus sleep and
+  // perceived stress-recovery balance from adolescent-athlete studies). Each uses a
+  // different check-in widget and its own wording, so the four questions don't feel
+  // like copies of each other.
+  var PILLARS = [
+    { key:"energy", label:"Energy", icon:"⚡", widget:"emoji",
+      question:"How energized do you feel today?",
+      labels:["Drained","Low","Okay","Energized","Amped"],
+      emojis:["😞","😕","😐","🙂","😄"],
+      blurb:"Physical and emotional exhaustion is the strongest single predictor in the validated Athlete Burnout Questionnaire — catching a downward trend early is the whole point of tracking it." },
+    { key:"stress", label:"Stress Balance", icon:"⚖️", widget:"slider",
+      question:"Where do you sit between overloaded and fully recovered right now?",
+      labels:["Overloaded","Strained","Balanced","Recovered","Fully charged"],
+      blurb:"Studies on adolescent elite athletes found perceived stress and recovery balance directly predicts burnout, depressive symptoms, and insomnia — it's not just about how hard you train, but whether recovery keeps up." },
+    { key:"sleep", label:"Sleep", icon:"🌙", widget:"rating", ratingIcon:"🌙",
+      question:"How was your sleep last night?",
+      labels:["Poor","Rough","Okay","Good","Great"],
+      blurb:"Sleep quality is one of the most consistent predictors of burnout in youth athletes — poor sleep compounds fatigue and mood disturbance over just a few nights." },
+    { key:"motivation", label:"Motivation", icon:"🔥", widget:"rating", ratingIcon:"🔥",
+      question:"How motivated and fulfilled do you feel in your sport right now?",
+      labels:["Burnt out","Low","Okay","Motivated","Fired up"],
+      blurb:"Losing your sense of accomplishment or enjoyment — \"sport devaluation\" — is a distinct, measurable dimension of burnout, separate from simply being tired." }
+  ];
+
+  // ---- "What's contributing?" follow-up, done properly. The old version showed the same
+  // fixed, deficit-framed chip list ("Poor sleep", "Heavy training load"...) no matter what
+  // the athlete answered — so picking "Energized" still surfaced a list of negative causes.
+  // That's not just unpolished, it's the wrong instrument: research on attribution only
+  // makes sense when it's valence-matched to what actually happened.
+  //
+  // A low/negative answer gets asked about plausible stressors, grounded in the Athlete
+  // Burnout Questionnaire's exhaustion / reduced-accomplishment / devaluation dimensions
+  // (Raedeke & Smith, 2001) and adolescent-athlete sleep-stress research.
+  // A high/positive answer gets asked what's contributing to THAT instead — grounded in
+  // Fredrickson's broaden-and-build theory (2001, positive emotions build durable personal
+  // resources, so it's worth identifying what to repeat) and, for Motivation specifically,
+  // Self-Determination Theory (Deci & Ryan — autonomy, competence, relatedness as drivers
+  // of intrinsic motivation).
+  // A neutral/middle answer isn't a strong enough signal to interrogate, so it's skipped
+  // entirely rather than manufacturing a question with nothing meaningful behind it.
+  //
+  // This local map is only the OFFLINE fallback. When bloom-backend/server.js is running,
+  // Claude generates this follow-up live per-answer (see requestFollowup below) and can
+  // replace the question and chip set entirely, not just filter them.
+  var NEGATIVE_CONTRIBUTORS = {
+    energy:     ["Poor sleep","Heavy training load","Illness or soreness","School/work stress","Diet"],
+    stress:     ["Competition pressure","Schoolwork","Family/social","Injury concern","Coach/team dynamics"],
+    sleep:      ["Went to bed late","Screen time before bed","Nerves/anxiety","Noisy environment","Early wake-up"],
+    motivation: ["Recent performance","Team dynamics","Injury/setback","Feeling burnt out"]
+  };
+  var POSITIVE_CONTRIBUTORS = {
+    energy:     ["Good sleep","Well-paced training load","Ate well","Feeling healthy","Lighter week"],
+    stress:     ["Good recovery time","Supportive teammates","On top of schoolwork","Enjoying training","Handled pressure well"],
+    sleep:      ["Consistent bedtime","Limited screens before bed","Comfortable environment","Felt relaxed","Good routine"],
+    motivation: ["Felt in control of training","Made progress on something","Connected with teammates","Excited for what's next","Recent performance"]
+  };
+  var NEGATIVE_FOLLOWUP_QUESTIONS = {
+    energy: "What's contributing to feeling drained?",
+    stress: "What's tipping you toward overloaded?",
+    sleep: "What got in the way of a good night's sleep?",
+    motivation: "What's contributing to that, if anything?"
+  };
+  var POSITIVE_FOLLOWUP_QUESTIONS = {
+    energy: "What helped fuel your energy today?",
+    stress: "What helped you feel balanced?",
+    sleep: "What helped you sleep well?",
+    motivation: "What's driving that motivation?"
+  };
+  function localFollowupFallback(pillarKey, val){
+    if(val === 3) return { question:"", chips:[], skip:true };
+    var positive = val >= 4;
+    return {
+      question: (positive ? POSITIVE_FOLLOWUP_QUESTIONS : NEGATIVE_FOLLOWUP_QUESTIONS)[pillarKey],
+      chips: (positive ? POSITIVE_CONTRIBUTORS : NEGATIVE_CONTRIBUTORS)[pillarKey],
+      skip: false
+    };
+  }
+
+  var PET_COLORS = ["#ffb4a2","#ffd166","#8ecae6","#95d5b2","#c9b6e4","#f4978e"];
+  var ACCESSORIES = [
+    {id:"none", ic:"—", unlockStreak:0},
+    {id:"bow", ic:"🎀", unlockStreak:5},
+    {id:"crown", ic:"👑", unlockStreak:10},
+    {id:"glasses", ic:"🕶️", unlockStreak:20},
+    {id:"cape", ic:"🦸", unlockStreak:35}
+  ];
+  var BADGES = [
+    {id:"starter", ic:"🥉", threshold:5, label:"5 check-ins"},
+    {id:"committed", ic:"🥈", threshold:15, label:"15 check-ins"},
+    {id:"dedicated", ic:"🥇", threshold:30, label:"30 check-ins"},
+    {id:"elite", ic:"🏆", threshold:50, label:"50 check-ins"}
+  ];
+
+  // Seed 14 days of correlated sample data so trends look real immediately.
+  var sampleEnergy =     [3,2,3,4,3,4,5,4,3,4,4,5,4,4];
+  var sampleStress =     [3,2,2,3,3,4,4,4,3,3,4,5,4,4];
+  var sampleSleep  =     [3,2,2,4,3,4,5,3,2,4,4,5,3,4];
+  var sampleMotivation = [4,3,3,4,4,4,5,4,4,4,4,5,4,5];
+  var sampleNotes = ["Long day but got through it.","Tired, low motivation.","Better after lunch.","Good practice today.","Okay, a bit stressed about a test.","Hung out with friends.","Great game, we won!","Solid day overall.","Rough morning, better by evening.","Felt productive.","Good mood most of the day.","Best day this week.","Pretty good, relaxed evening.","Steady, calm day."];
+  var history = [];
+  for (var i = 0; i < 14; i++) {
+    history.push({ ts: demoBaseTs + i*DAY_MS, energy: sampleEnergy[i], stress: sampleStress[i], sleep: sampleSleep[i], motivation: sampleMotivation[i], note: sampleNotes[i] });
+  }
+
+  // ---- Post-practice check-in: grounded in real training-load monitoring tools, not
+  // invented emoji questions. Session-RPE (Foster's method) x duration = training load;
+  // Perceived Recovery Status (Laurent et al., 2011) and a 0-10 DOMS soreness scale round
+  // out the picture. Tracked over time, this is what lets sudden load spikes — the thing
+  // actually associated with injury risk (Gabbett, 2016) — get flagged automatically.
+  var RPE_LABELS = ["Rest","Very light","Light","Moderate","Somewhat hard","Hard","Hard+","Very hard","Very hard+","Very, very hard","Maximal effort"];
+  function prsLabel(v){
+    if(v<=1) return "Very poorly recovered — extremely tired";
+    if(v<=3) return "Poorly recovered — very tired";
+    if(v<=5) return "Somewhat recovered — tired";
+    if(v<=7) return "Adequately recovered";
+    return "Very well recovered — highly energetic";
+  }
+  function sorenessLabel(v){
+    if(v<=0) return "No soreness";
+    if(v<=2) return "Slight soreness";
+    if(v<=4) return "Mild soreness";
+    if(v<=6) return "Moderate soreness";
+    if(v<=8) return "Significant soreness";
+    return "Severe — limits movement";
+  }
+  var SESSION_TYPES = ["Practice","Game","Scrimmage","Conditioning","Weight room","Other"];
+  var PRACTICE_STEPS = [
+    { key:"rpe", icon:"💪", label:"Session RPE", question:"How hard did that session feel — as a whole, physically and mentally?",
+      min:0, max:10, captionFn:function(v){ return v+" — "+RPE_LABELS[v]; }, endLabels:["Rest","Maximal"],
+      blurb:"Session-RPE (Foster's method): a 0-10 Borg CR-10 rating of the whole session. Multiplied by duration, it's one of the most widely used training-load measures in sports science." },
+    { key:"recovery", icon:"🔋", label:"Recovery", question:"How recovered do you feel right now, compared to your normal baseline?",
+      min:0, max:10, captionFn:function(v){ return v+" — "+prsLabel(v); }, endLabels:["Extremely tired","Highly energetic"],
+      blurb:"Perceived Recovery Status (Laurent et al., 2011) — self-rated recovery like this predicts performance capacity better than people assume." },
+    { key:"soreness", icon:"🦵", label:"Soreness", question:"How sore are your muscles right now?",
+      min:0, max:10, captionFn:function(v){ return v+" — "+sorenessLabel(v); }, endLabels:["No soreness","Severe, limits movement"],
+      blurb:"A plain 0-10 muscle-soreness (DOMS) rating — standard in training-load research, and a simple early flag for accumulating fatigue." }
+  ];
+  var PRACTICE_TOTAL_STEPS = 5; // duration+type, rpe, recovery, soreness, note
+
+  var samplePracticeDays = [
+    {d:0,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     note:"Focused on conditioning."},
+    {d:2,  duration:75,  rpe:5, recovery:7, soreness:3, type:"Practice",     note:""},
+    {d:3,  duration:90,  rpe:6, recovery:6, soreness:4, type:"Game",         note:"Tough opponent, high intensity."},
+    {d:4,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     note:""},
+    {d:6,  duration:45,  rpe:3, recovery:9, soreness:1, type:"Conditioning", note:"Easy recovery session."},
+    {d:7,  duration:90,  rpe:7, recovery:5, soreness:5, type:"Game",         note:"Big win, left it all out there."},
+    {d:9,  duration:60,  rpe:5, recovery:7, soreness:3, type:"Practice",     note:""},
+    {d:10, duration:75,  rpe:6, recovery:6, soreness:4, type:"Practice",     note:"Coach added extra drills."},
+    {d:11, duration:100, rpe:8, recovery:4, soreness:7, type:"Game",         note:"Playoff intensity."},
+    {d:13, duration:110, rpe:8, recovery:3, soreness:8, type:"Practice",     note:"Tournament prep — longest session in weeks."}
+  ];
+  var practiceLogs = samplePracticeDays.map(function(e){
+    return { ts: demoBaseTs + e.d*DAY_MS + 17*3600000, duration:e.duration, rpe:e.rpe, recovery:e.recovery, soreness:e.soreness, load:e.duration*e.rpe, sessionType:e.type, note:e.note };
+  });
+
+  // ---- Real persistence: each device/browser keeps its own progress in localStorage. No
+  // accounts, no shared server database — appropriate for wellbeing check-in data, and all
+  // that's needed for a handful of testers to each use this on their own phone/laptop.
+  var STORAGE_KEY = "bloom-checkin-state-v1";
+  function persist(){
+    if(DEMO_MODE) return; // never let a demo preview overwrite a real tester's saved progress
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        points: state.points, streak: state.streak, longestStreak: state.longestStreak,
+        history: state.history, practiceLogs: state.practiceLogs,
+        pet: state.pet, settings: state.settings
+      }));
+    } catch(e) { /* storage unavailable/full — app still works for this session */ }
+  }
+  function loadPersisted(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return null;
+      var saved = JSON.parse(raw);
+      return (saved && typeof saved === "object") ? saved : null;
+    } catch(e) { return null; }
+  }
+
+  var state = {
+    tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false,
+    points: DEMO_MODE ? 240 : 0,
+    streak: DEMO_MODE ? 6 : 0,
+    longestStreak: DEMO_MODE ? 9 : 0,
+    checkedInToday: false,
+    history: DEMO_MODE ? history : [],
+    practiceLogs: DEMO_MODE ? practiceLogs : [],
+    pet: { name: "Buddy", color: PET_COLORS[2], accessory: DEMO_MODE ? "bow" : "none" },
+    settings: { notifications: true, smartReminders: true, aiAlerts: true, dailyTime: "20:00", customReminders: DEMO_MODE ? [{label:"After soccer practice", time:"17:30"}] : [] },
+    chartView: "chart",
+    checkin: { step: 1, answers: {energy:null, stress:null, sleep:null, motivation:null}, note: "" },
+    practiceCheckin: null
+  };
+
+  // Demo mode is a stable, always-fresh preview — it never reads or writes real saved
+  // progress, so ?demo=1 can't clobber a real tester's data on a shared computer.
+  if(!DEMO_MODE){
+    var saved = loadPersisted();
+    if(saved){
+      if(Array.isArray(saved.history)) state.history = saved.history;
+      if(Array.isArray(saved.practiceLogs)) state.practiceLogs = saved.practiceLogs;
+      if(typeof saved.points === "number") state.points = saved.points;
+      if(typeof saved.streak === "number") state.streak = saved.streak;
+      if(typeof saved.longestStreak === "number") state.longestStreak = saved.longestStreak;
+      if(saved.pet && typeof saved.pet === "object") state.pet = Object.assign({}, state.pet, saved.pet);
+      if(saved.settings && typeof saved.settings === "object") state.settings = Object.assign({}, state.settings, saved.settings);
+    }
+  }
+  // Always recompute from real history rather than trusting a persisted boolean — otherwise
+  // reopening the app on a new day would incorrectly still say "checked in today".
+  state.checkedInToday = state.history.length > 0 && isSameLocalDay(state.history[state.history.length-1].ts, Date.now());
+
+  function fmtDate(ts){ var d=new Date(ts); var m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return m[d.getMonth()]+" "+d.getDate(); }
+  function weekday(ts){ var d=new Date(ts); var wd=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]; return wd[d.getDay()]; }
+  function weekdayShort(ts){ var d=new Date(ts); var wd=["S","M","T","W","T","F","S"]; return wd[d.getDay()]; }
+  function scoreOf(h, key){ return LEVELS[h[key]-1].score; }
+  function compositeScoreOf(h){ var s=0; PILLARS.forEach(function(p){s+=scoreOf(h,p.key);}); return Math.round(s/PILLARS.length); }
+  function zoneOf(score){ if(score>=70) return {name:"Green", color:"var(--good)"}; if(score>=40) return {name:"Yellow", color:"var(--warning)"}; return {name:"Red", color:"var(--critical)"}; }
+  function fmtTime(t){ var p=t.split(":"); var h=parseInt(p[0],10),m=p[1]; var ap=h>=12?"PM":"AM"; var h12=h%12; if(h12===0)h12=12; return h12+":"+m+" "+ap; }
+  function pillarByKey(k){ return PILLARS.filter(function(p){return p.key===k;})[0]; }
+  function levelForPoints(pts){ return Math.floor(pts/100)+1; }
+  function xpPctForPoints(pts){ return pts % 100; }
+
+  function avgScoreLastN(n, key){
+    var arr = state.history.slice(-n); if(!arr.length) return 0;
+    var s=0; arr.forEach(function(h){ s += key ? scoreOf(h,key) : compositeScoreOf(h); });
+    return s/arr.length;
+  }
+  function bestWeekdayFor(key){
+    var sums={},counts={};
+    state.history.forEach(function(h){ var wd=weekday(h.ts); var v = key?scoreOf(h,key):compositeScoreOf(h); sums[wd]=(sums[wd]||0)+v; counts[wd]=(counts[wd]||0)+1; });
+    var best=null,bestAvg=-1;
+    Object.keys(sums).forEach(function(k){ var avg=sums[k]/counts[k]; if(avg>bestAvg){bestAvg=avg;best=k;} });
+    return best;
+  }
+  function weakestPillar(){
+    var lowest=null, lowestAvg=999;
+    PILLARS.forEach(function(p){ var avg=avgScoreLastN(7,p.key); if(avg<lowestAvg){lowestAvg=avg;lowest=p;} });
+    return lowest;
+  }
+  function strongestPillar(){
+    var top=null, topAvg=-1;
+    PILLARS.forEach(function(p){ var avg=avgScoreLastN(7,p.key); if(avg>topAvg){topAvg=avg;top=p;} });
+    return top;
+  }
+  // Week-over-week change, used to compute real (not fabricated) pattern alerts.
+  function weekOverWeekDelta(key){
+    var last7 = state.history.slice(-7);
+    var prev7 = state.history.slice(-14,-7);
+    if(prev7.length < 7) return null;
+    function avg(arr){ var s=0; arr.forEach(function(h){ s += key ? scoreOf(h,key) : compositeScoreOf(h); }); return s/arr.length; }
+    return Math.round(avg(last7) - avg(prev7));
+  }
+  // Simple, explainable pattern detection over real check-in history — this is the kind
+  // of logic a real backend would run (optionally calling an LLM) to decide what's worth
+  // surfacing as a notification, rather than checking in on a fixed timer.
+  function detectAlerts(){
+    var alerts = [];
+    PILLARS.forEach(function(p){
+      var delta = weekOverWeekDelta(p.key);
+      if(delta !== null && delta <= -12){
+        alerts.push({ icon:p.icon, severity:"warn",
+          text: p.label+" dropped "+Math.abs(delta)+" points versus last week — worth keeping an eye on.",
+          time: "Today" });
+      }
+    });
+    var compDelta = weekOverWeekDelta(null);
+    if(compDelta !== null && compDelta <= -10){
+      alerts.push({ icon:"", severity:"warn", text:"Overall wellbeing is down "+Math.abs(compDelta)+" points from last week across all four pillars combined.", time:"Today" });
+    } else if(compDelta !== null && compDelta >= 10){
+      alerts.push({ icon:"", severity:"good", text:"Overall wellbeing is up "+compDelta+" points from last week — whatever changed, it's working.", time:"Today" });
+    }
+    if(state.streak >= 5 && state.streak === state.longestStreak){
+      alerts.push({ icon:"", severity:"good", text:"You're on your longest streak yet at "+state.streak+" days.", time:"Today" });
+    }
+    if(!alerts.length){
+      alerts.push({ icon:"", severity:"good", text:"No concerning patterns detected this week — all four pillars are steady.", time:"Today" });
+    }
+    return alerts;
+  }
+  function generateWellbeingNarrative(){
+    var avg14 = Math.round(avgScoreLastN(14));
+    var delta = weekOverWeekDelta(null);
+    var strong = strongestPillar(), weak = weakestPillar();
+    var trendWord = delta===null ? "holding steady" : (delta>3 ? "trending upward" : (delta<-3 ? "trending downward" : "holding steady"));
+    var deltaText = delta===null ? "" : (delta>0 ? " ("+"+"+delta+" pts vs. the week before)" : (delta<0 ? " ("+delta+" pts vs. the week before)" : " (flat vs. the week before)"));
+    return "Over the last 14 days your overall wellbeing has averaged <strong>"+avg14+"/100</strong>, "+trendWord+deltaText+". "+
+      "<strong>"+strong.label+"</strong> has been your strongest pillar, while <strong>"+weak.label+"</strong> has been your lowest — that's the one worth focusing on this week. "+
+      "You're currently on a <strong>"+state.streak+"-day</strong> check-in streak"+(state.streak>=state.longestStreak-2 && state.streak<state.longestStreak ? ", closing in on your all-time best" : "")+".";
+  }
+
+  // ---- Training-load spike detection (Gabbett, 2016): a sudden jump in recent load vs.
+  // your typical load — not just "training hard" — is what's associated with injury risk.
+  // Simplified acute:chronic workload ratio using last 3 sessions vs. last up to 10.
+  function acuteChronicRatio(){
+    var logs = state.practiceLogs.slice().sort(function(a,b){ return a.ts-b.ts; });
+    if(logs.length < 4) return null;
+    function avgLoad(arr){ var s=0; arr.forEach(function(e){ s+=e.load; }); return s/arr.length; }
+    var chronic = avgLoad(logs.slice(-10));
+    if(!chronic) return null;
+    return avgLoad(logs.slice(-3)) / chronic;
+  }
+  function loadTrendZone(){
+    var r = acuteChronicRatio();
+    if(r===null) return null;
+    if(r>=1.5) return { name:"Elevated", color:"var(--critical)", note:"Your last few sessions are running notably higher than your recent average — that kind of load spike is linked to higher injury risk (Gabbett, 2016), so recovery matters extra right now." };
+    if(r<0.8) return { name:"Light", color:"var(--warning)", note:"Recent training load is lower than your typical average — could be planned rest, or worth checking nothing's keeping you from training." };
+    return { name:"Sustainable", color:"var(--good)", note:"Recent training load is holding in a steady, sustainable range relative to your own recent average." };
+  }
+
+  function showToast(msg, ms){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._timer); t._timer=setTimeout(function(){t.classList.remove("show");}, ms||2600); }
+
+  function ringSvg(score, size, stroke, showText, colorOverride){
+    var r=(size-stroke)/2, c=size/2, circ=2*Math.PI*r;
+    var pct = Math.max(0, Math.min(100, score))/100;
+    var dash = circ*pct;
+    var zone = zoneOf(score);
+    var color = colorOverride || zone.color;
+    var text = showText ? '<text x="'+c+'" y="'+(c+ (size*0.09) )+'" text-anchor="middle" font-size="'+Math.round(size*0.26)+'" font-weight="800" fill="var(--text-primary)">'+Math.round(score)+'</text>' : "";
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">' +
+      '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="var(--surface-2)" stroke-width="'+stroke+'"/>' +
+      '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+dash+' '+circ+'" transform="rotate(-90 '+c+' '+c+')"/>' +
+      text + '</svg>';
+  }
+
+  // Cute critter face — SVG so it stays crisp at any avatar size. Ears + inner-ear peek out
+  // from behind a round head, with blush cheeks, big round eyes with a shine, and a smile.
+  var petSvgCounter = 0;
+  function shadeColor(hex, percent){
+    var f = parseInt(hex.slice(1),16), t = percent<0?0:255, p = percent<0?percent*-1:percent;
+    var R=f>>16, G=(f>>8)&0x00FF, B=f&0x0000FF;
+    return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
+  }
+  function petFaceSvg(size){
+    petSvgCounter++;
+    var clipId = "petClip"+petSvgCounter;
+    var color = state.pet.color;
+    var earColor = shadeColor(color, -0.14);
+    var innerEar = shadeColor(color, 0.4);
+    var shadowColor = shadeColor(color, -0.16);
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 100" style="display:block;overflow:visible;">' +
+      '<defs><clipPath id="'+clipId+'"><circle cx="50" cy="55" r="40"/></clipPath></defs>' +
+      '<circle cx="23" cy="21" r="15" fill="'+earColor+'"/>' +
+      '<circle cx="77" cy="21" r="15" fill="'+earColor+'"/>' +
+      '<circle cx="23" cy="22" r="7.5" fill="'+innerEar+'"/>' +
+      '<circle cx="77" cy="22" r="7.5" fill="'+innerEar+'"/>' +
+      '<circle cx="50" cy="55" r="40" fill="'+color+'"/>' +
+      '<ellipse cx="50" cy="100" rx="46" ry="30" fill="'+shadowColor+'" opacity="0.4" clip-path="url(#'+clipId+')"/>' +
+      '<ellipse cx="29" cy="63" rx="8" ry="5" fill="#ff9aa6" opacity="0.55"/>' +
+      '<ellipse cx="71" cy="63" rx="8" ry="5" fill="#ff9aa6" opacity="0.55"/>' +
+      '<circle cx="38" cy="51" r="6" fill="#2c2a24"/>' +
+      '<circle cx="62" cy="51" r="6" fill="#2c2a24"/>' +
+      '<circle cx="40" cy="48.5" r="1.8" fill="#fff"/>' +
+      '<circle cx="64" cy="48.5" r="1.8" fill="#fff"/>' +
+      '<path d="M 41 66 Q 50 73 59 66" stroke="#2c2a24" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  }
+  // Accessory renders as a separate overlay on top of the face (absolutely positioned via
+  // the .accessory CSS class) instead of replacing it.
+  function petAccessoryIcon(size){
+    var acc = ACCESSORIES.filter(function(a){return a.id===state.pet.accessory;})[0];
+    if(!acc || acc.id==="none") return "";
+    return '<span class="accessory" style="font-size:'+size+'px">'+acc.ic+'</span>';
+  }
+  function petStatusText(){
+    if(state.streak>=10) return state.pet.name+" is thriving on your streak.";
+    if(state.streak>=3) return state.pet.name+" is happy and cared for.";
+    if(state.streak>=1) return "Check in to keep "+state.pet.name+" happy.";
+    return state.pet.name+" misses you.";
+  }
+
+  function render(){
+    persist();
+    document.querySelectorAll(".tabbar button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-tab")===state.tab && !state.detailPillar && !state.showInsights && !state.showPracticeLog); });
+    var showDetail = !!state.detailPillar;
+    var showInsights = !!state.showInsights;
+    var showPracticeLog = !!state.showPracticeLog;
+    ["home","trends","journal","pet","settings"].forEach(function(t){ document.getElementById("view-"+t).hidden = showDetail || showInsights || showPracticeLog || (t!==state.tab); });
+    document.getElementById("view-detail").hidden = !showDetail;
+    document.getElementById("view-insights").hidden = !showInsights;
+    document.getElementById("view-practicelog").hidden = !showPracticeLog;
+
+    if(showDetail){ renderDetail(state.detailPillar); return; }
+    if(showInsights){ renderInsights(); return; }
+    if(showPracticeLog){ renderPracticeLog(); return; }
+    if(state.tab==="home") renderHome();
+    if(state.tab==="trends") renderTrends();
+    if(state.tab==="journal") renderJournal();
+    if(state.tab==="pet") renderPet();
+    if(state.tab==="settings") renderSettings();
+  }
+
+  function openPillar(key){ state.detailPillar = key; state.chartView = "chart"; render(); }
+  function closePillar(){ state.detailPillar = null; render(); }
+  function openInsights(){ state.showInsights = true; render(); }
+  function closeInsights(){ state.showInsights = false; render(); }
+  function openPracticeLog(){ state.showPracticeLog = true; render(); }
+  function closePracticeLog(){ state.showPracticeLog = false; render(); }
+
+  // ---------- AI Insights ----------
+  // Tries the real backend (server.js, see the bloom-backend folder) first, which calls
+  // the actual Claude API. If it's not running/reachable, falls back to the local
+  // rule-based version so this file still works as a standalone demo on its own.
+  var AI_BACKEND_URL = "http://localhost:3001/api/insights";
+  var AI_FOLLOWUP_URL = "http://localhost:3001/api/followup";
+
+  // ---------- Check-in "what's contributing?" follow-up, Claude-generated per answer ----------
+  // Fired the moment an athlete picks a value for a pillar. Claude decides the question AND
+  // the chip options (or that there should be no follow-up at all) based on the actual score
+  // — see the FOLLOWUP_SYSTEM_PROMPT in bloom-backend/server.js. If the backend isn't running,
+  // this falls back to the science-grounded local map above instead of silently doing nothing.
+  function scheduleFollowupRequest(pillarKey, val){
+    setTimeout(function(){ requestFollowup(pillarKey, val); }, 0);
+  }
+  function applyFollowup(pillarKey, val, result){
+    var current = state.checkin.followup[pillarKey];
+    if(!current || current.forVal !== val) return; // answer changed again before this resolved
+    state.checkin.followup[pillarKey] = { forVal: val, loading:false, question: result.question, chips: result.chips, skip: !!result.skip, source: result.source };
+    var p = pillarByKey(pillarKey);
+    var stepForKey = PILLARS.indexOf(p) + 1;
+    if(state.checkin.step === stepForKey && document.getElementById("checkinScreen")) renderCheckinScreen();
+  }
+  function requestFollowup(pillarKey, val){
+    var p = pillarByKey(pillarKey);
+    var label = p.labels[val-1];
+    var controller = new AbortController();
+    var timeout = setTimeout(function(){ controller.abort(); }, 2500);
+    fetch(AI_FOLLOWUP_URL, {
+      method: "POST",
+      headers: {"content-type":"application/json"},
+      body: JSON.stringify({ pillar: p.key, pillarLabel: p.label, value: val, label: label }),
+      signal: controller.signal
+    })
+    .then(function(r){ if(!r.ok) throw new Error("backend responded "+r.status); return r.json(); })
+    .then(function(data){
+      clearTimeout(timeout);
+      if(typeof data.question !== "string" || !Array.isArray(data.chips)) throw new Error("unexpected shape");
+      applyFollowup(pillarKey, val, { question:data.question, chips:data.chips.slice(0,5), skip:!!data.skip, source:"live" });
+    })
+    .catch(function(){
+      clearTimeout(timeout);
+      var fb = localFollowupFallback(pillarKey, val);
+      applyFollowup(pillarKey, val, { question:fb.question, chips:fb.chips, skip:fb.skip, source:"local" });
+    });
+  }
+
+  function renderAlertsAndNarrative(alerts, narrative, source){
+    var el = document.getElementById("view-insights");
+    var alertsHtml = alerts.map(function(a){
+      var time = a.time || "Today";
+      return '<div class="alert-card">'+(a.icon?'<div class="a-ic">'+a.icon+'</div>':'')+'<div><div class="a-text">'+a.text+'</div><div class="a-time">'+time+'</div></div></div>';
+    }).join("");
+    var banner = source === "live"
+      ? '<div class="ai-banner">Live from Claude — this analysis was generated in real time by the backend in bloom-backend/server.js.</div>'
+      : '<div class="ai-banner">Local preview: couldn\'t reach the AI backend at '+AI_BACKEND_URL+', so this is the built-in rule-based fallback computed from your real check-in data. Run bloom-backend/server.js (see its README) to see Claude\'s actual analysis here instead.</div>';
+    el.innerHTML =
+      '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
+      banner +
+      '<div class="card"><h3>Recent alerts</h3></div>' +
+      alertsHtml +
+      '<div class="card" style="margin-top:14px;"><h3>Your wellbeing over time</h3><div class="narrative-text">'+narrative+'</div></div>';
+    document.getElementById("insightsBack").onclick = closeInsights;
+  }
+
+  function renderInsightsLoading(){
+    var el = document.getElementById("view-insights");
+    el.innerHTML =
+      '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
+      '<div class="ai-banner">Asking Claude to analyze your check-ins…</div>';
+    document.getElementById("insightsBack").onclick = closeInsights;
+  }
+
+  function historyForBackend(){
+    return state.history.map(function(h){
+      return { date: fmtDate(h.ts), energy: scoreOf(h,"energy"), stress: scoreOf(h,"stress"), sleep: scoreOf(h,"sleep"), motivation: scoreOf(h,"motivation") };
+    });
+  }
+
+  function renderNotEnoughDataInsights(){
+    var el = document.getElementById("view-insights");
+    el.innerHTML =
+      '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
+      '<div class="card"><h3>Not enough data yet</h3><p>Check in for a few more days and Bloom (powered by Claude) will start surfacing real patterns and a wellbeing summary here.</p></div>';
+    document.getElementById("insightsBack").onclick = closeInsights;
+  }
+
+  function renderInsights(){
+    if(state.history.length < 3){ renderNotEnoughDataInsights(); return; }
+    renderInsightsLoading();
+    var controller = new AbortController();
+    var timeout = setTimeout(function(){ controller.abort(); }, 3000);
+
+    fetch(AI_BACKEND_URL, {
+      method: "POST",
+      headers: {"content-type":"application/json"},
+      body: JSON.stringify({ history: historyForBackend(), streak: state.streak, longestStreak: state.longestStreak }),
+      signal: controller.signal
+    })
+    .then(function(r){ if(!r.ok) throw new Error("backend responded "+r.status); return r.json(); })
+    .then(function(data){
+      clearTimeout(timeout);
+      if(!state.showInsights) return; // user navigated away before this resolved
+      if(!Array.isArray(data.alerts) || typeof data.narrative !== "string") throw new Error("unexpected shape");
+      renderAlertsAndNarrative(data.alerts, data.narrative, "live");
+    })
+    .catch(function(){
+      clearTimeout(timeout);
+      if(!state.showInsights) return;
+      renderAlertsAndNarrative(detectAlerts(), generateWellbeingNarrative(), "local");
+    });
+  }
+
+  // ---------- Training Load (post-practice check-ins over time) ----------
+  function renderPracticeLog(){
+    var el = document.getElementById("view-practicelog");
+    var logs = state.practiceLogs.slice().sort(function(a,b){ return a.ts-b.ts; });
+    if(!logs.length){
+      el.innerHTML =
+        '<div class="back-row" id="practiceLogBack"><span class="arrow">←</span><span class="btitle">Training Load</span></div>' +
+        '<div class="card"><h3>No sessions logged yet</h3><p>Log your first practice or game from the Home tab and Bloom will start tracking your training load here.</p></div>';
+      document.getElementById("practiceLogBack").onclick = closePracticeLog;
+      return;
+    }
+    var zone = loadTrendZone();
+    var last7 = logs.slice(-7);
+    var avgLoad7 = last7.length ? Math.round(last7.reduce(function(s,e){ return s+e.load; },0)/last7.length) : 0;
+    var maxLoad = Math.max.apply(null, logs.map(function(e){ return e.load; }).concat([1]));
+
+    var bars = logs.slice(-10).map(function(e){
+      var h = 8 + (e.load/maxLoad)*70;
+      var barColor = e.rpe>=8 ? "var(--critical)" : (e.rpe>=5 ? "var(--warning)" : "var(--good)");
+      return '<div class="week-day"><div class="bar" style="height:78px;">' +
+        '<div style="width:100%;height:'+h+'px;border-radius:6px;background:'+barColor+';"></div></div>' +
+        '<div class="lbl">'+weekdayShort(e.ts)+'</div></div>';
+    }).join("");
+
+    var entriesHtml = logs.slice().reverse().map(function(e){
+      return '<div class="card" style="margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;">'+fmtDate(e.ts)+(e.sessionType?' · '+e.sessionType:'')+'</span>' +
+          '<span style="font-size:12px;font-weight:800;color:var(--text-primary);">'+e.load+' AU</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">⏱️ '+e.duration+' min · 💪 RPE '+e.rpe+' · 🔋 Recovery '+e.recovery+' · 🦵 Soreness '+e.soreness+'</div>' +
+        (e.note ? '<p>'+e.note+'</p>' : '') +
+      '</div>';
+    }).join("");
+
+    el.innerHTML =
+      '<div class="back-row" id="practiceLogBack"><span class="arrow">←</span><span class="btitle">Training Load</span></div>' +
+      (zone
+        ? '<div class="ai-banner" style="border-color:'+zone.color+';">'+zone.note+'</div>'
+        : '<div class="ai-banner">Log a few more sessions and Bloom will start flagging load spikes automatically — sudden jumps in training load are linked to higher injury risk (Gabbett, 2016).</div>') +
+      '<div class="stat-grid">' + statTile(logs.length,"Sessions logged") + statTile(avgLoad7,"7-session avg load") + '</div>' +
+      '<div class="card"><h3>Load, last '+Math.min(10,logs.length)+' sessions</h3><div class="week-strip">'+bars+'</div>' +
+        '<div class="insight">Session load = duration × session-RPE (Foster\'s method). Taller, redder bars mean bigger, harder sessions.</div></div>' +
+      entriesHtml;
+
+    document.getElementById("practiceLogBack").onclick = closePracticeLog;
+  }
+
+  // ---------- Home ----------
+  function renderHome(){
+    var el = document.getElementById("view-home");
+    var hasHistory = state.history.length > 0;
+    var hasEnoughForInsights = state.history.length >= 3;
+    var todayScore = state.checkedInToday ? compositeScoreOf(state.history[state.history.length-1]) : Math.round(avgScoreLastN(7));
+    var zone = zoneOf(todayScore);
+
+    var heroRing = hasHistory ? ringSvg(todayScore, 150, 13, true) : ringSvg(0, 150, 13, false, "var(--gridline)");
+    var heroZoneLine = hasHistory
+      ? '<div class="ring-zone"><span class="dot" style="background:'+zone.color+'"></span>' + zone.name + ' Zone</div>'
+      : '<div class="ring-zone" style="color:var(--muted);">Log your first check-in to get started</div>';
+
+    var pillarCards = PILLARS.map(function(p){
+      if(!hasHistory){
+        return '<div class="pillar-card" data-pillar="'+p.key+'">' + ringSvg(0, 74, 8, false, "var(--gridline)") + '<div class="pname">'+p.icon+' '+p.label+'</div></div>';
+      }
+      var latest = state.history[state.history.length-1];
+      var score = state.checkedInToday ? scoreOf(latest, p.key) : Math.round(avgScoreLastN(7, p.key));
+      return '<div class="pillar-card" data-pillar="'+p.key+'">' + ringSvg(score, 74, 8, true) + '<div class="pname">'+p.icon+' '+p.label+'</div></div>';
+    }).join("");
+
+    var lvl = levelForPoints(state.points);
+    var xp = xpPctForPoints(state.points);
+    var alerts = hasEnoughForInsights ? detectAlerts() : [];
+    var hasWarn = alerts.some(function(a){ return a.severity==="warn"; });
+    var aiPreview = !hasEnoughForInsights
+      ? "Check in a few times and I'll start surfacing patterns here."
+      : (hasWarn ? alerts.filter(function(a){return a.severity==="warn";})[0].text : "No concerning patterns this week — tap for your full summary.");
+
+    var loadZone = loadTrendZone();
+    var lastLog = state.practiceLogs.length ? state.practiceLogs[state.practiceLogs.length-1] : null;
+
+    el.innerHTML =
+      '<div class="hero">' +
+        '<div class="ring-label">' + (hasHistory ? (state.checkedInToday ? "Today's Wellbeing Score" : "7-Day Average") : "Welcome to Bloom") + '</div>' +
+        heroRing + heroZoneLine +
+      '</div>' +
+      '<div class="pillar-grid">' + pillarCards + '</div>' +
+      (state.settings.aiAlerts ?
+      '<div class="ai-card" id="aiCard">' +
+        (hasWarn ? '<span class="ai-dot"></span>' : '') +
+        '<div class="ai-body"><div class="ai-title">AI Insights</div><div class="ai-sub">'+aiPreview+'</div></div>' +
+      '</div>' : '') +
+      (lastLog ?
+      '<div class="ai-card" id="loadCard">' +
+        (loadZone && loadZone.name==="Elevated" ? '<span class="ai-dot"></span>' : '') +
+        '<div class="ai-body"><div class="ai-title">Training Load</div><div class="ai-sub">Last session '+lastLog.load+' AU'+(loadZone?' · '+loadZone.name+' load':'')+'</div></div>' +
+      '</div>' : '') +
+      '<div class="pet-card" id="petCard">' +
+        '<div class="pet-avatar">' + petFaceSvg(52) + petAccessoryIcon(20) + '</div>' +
+        '<div class="pet-info">' +
+          '<div class="toprow"><span class="pname2">'+state.pet.name+'</span><span class="lvl">LV '+lvl+'</span></div>' +
+          '<div class="xp-track"><div class="xp-fill" style="width:'+xp+'%"></div></div>' +
+          '<div class="pet-stats"><span>'+state.streak+' day streak</span><span>'+state.points+' pts</span></div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="checkin-cta ' + (state.checkedInToday?"done":"") + '" id="checkinBtn">' + (state.checkedInToday ? "✓ Checked in today" : "Log today's check-in") + '</button>' +
+      '<button class="btn-secondary" style="width:100%;margin-bottom:14px;" id="practiceCheckinBtn">Log a practice or game</button>';
+
+    el.querySelectorAll(".pillar-card").forEach(function(c){ c.onclick = function(){ openPillar(c.getAttribute("data-pillar")); }; });
+    document.getElementById("petCard").onclick = function(){ state.tab="pet"; render(); };
+    var aiCard = document.getElementById("aiCard"); if(aiCard) aiCard.onclick = openInsights;
+    var loadCard = document.getElementById("loadCard"); if(loadCard) loadCard.onclick = openPracticeLog;
+    document.getElementById("checkinBtn").onclick = function(){ if(!state.checkedInToday) openCheckin(); };
+    document.getElementById("practiceCheckinBtn").onclick = openPracticeCheckin;
+  }
+
+  // ---------- Trends ----------
+  function renderTrends(){
+    var el = document.getElementById("view-trends");
+    var hasHistory = state.history.length > 0;
+    var weak = weakestPillar();
+    var cards = PILLARS.map(function(p){
+      var avg7 = Math.round(avgScoreLastN(7, p.key));
+      var zone = zoneOf(avg7);
+      var ring = hasHistory ? ringSvg(avg7, 52, 6, false, zone.color) : ringSvg(0, 52, 6, false, "var(--gridline)");
+      var sub = hasHistory ? "7-day avg "+avg7 : "No check-ins yet";
+      return '<div class="card" data-pillar="'+p.key+'" style="cursor:pointer;display:flex;align-items:center;gap:14px;">' +
+        ring +
+        '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-primary);">'+p.icon+' '+p.label+'</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+sub+'</div></div>' +
+        '<div style="font-size:18px;color:var(--muted);">›</div></div>';
+    }).join("");
+    var loadZone = loadTrendZone();
+    var loadCard = '<div class="card" id="trendsLoadCard" style="cursor:pointer;display:flex;align-items:center;gap:14px;">' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-primary);">Training Load</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+(loadZone?loadZone.name+' load · tap for detail':'Log a session to start tracking')+'</div></div>' +
+      (loadZone ? '<span class="dot" style="width:9px;height:9px;border-radius:50%;background:'+loadZone.color+';flex-shrink:0;"></span>' : '') +
+      '<div style="font-size:18px;color:var(--muted);">›</div></div>';
+    var attentionCard = hasHistory
+      ? '<div class="card"><h3>Needs attention</h3><p>'+weak.icon+' <strong style="color:var(--text-primary);">'+weak.label+'</strong> has been your lowest pillar this week — tap into it to see the trend.</p></div>'
+      : '<div class="card"><h3>Needs attention</h3><p>Check in for a few days and Bloom will show which pillar needs the most attention.</p></div>';
+
+    el.innerHTML =
+      '<h2 class="page-title">Trends</h2>' +
+      '<div class="stat-grid">' + statTile(state.streak,"Current streak") + statTile(state.longestStreak,"Longest streak") + '</div>' +
+      attentionCard +
+      loadCard +
+      cards;
+    el.querySelectorAll(".card[data-pillar]").forEach(function(c){ c.onclick=function(){ openPillar(c.getAttribute("data-pillar")); }; });
+    document.getElementById("trendsLoadCard").onclick = openPracticeLog;
+  }
+  function statTile(val,lbl){ return '<div class="stat-tile"><div class="val">'+val+'</div><div class="lbl">'+lbl+'</div></div>'; }
+
+  // ---------- Pillar detail ----------
+  function renderDetail(key){
+    var el = document.getElementById("view-detail");
+    var p = pillarByKey(key);
+    var hasHistory = state.history.length > 0;
+    var avg7 = Math.round(avgScoreLastN(7, key));
+    var best = bestWeekdayFor(key);
+    var latest = state.history[state.history.length-1];
+    var todayVal = state.checkedInToday ? scoreOf(latest, key) : avg7;
+    var zone = hasHistory ? zoneOf(todayVal) : { name:"No data yet", color:"var(--muted)" };
+    var ringHtml = hasHistory ? ringSvg(todayVal, 130, 12, true) : ringSvg(0, 130, 12, false, "var(--gridline)");
+    var bestDayLine = best
+      ? best+"'s tend to be your best days for "+p.label.toLowerCase()+"."
+      : "Check in for a couple weeks and Bloom will show which days tend to be best.";
+
+    el.innerHTML =
+      '<div class="back-row" id="backBtn"><span class="arrow">←</span><span class="btitle">'+p.icon+' '+p.label+'</span></div>' +
+      '<div class="hero" style="padding-top:0;">' + ringHtml +
+        '<div class="ring-zone"><span class="dot" style="background:'+zone.color+'"></span>' + zone.name + (hasHistory?' Zone':'') + '</div></div>' +
+      '<div class="card"><h3>Why this matters</h3><p>'+p.blurb+'</p></div>' +
+      '<div class="stat-grid">' + statTile(avg7,"7-day average") + statTile(Math.round(avgScoreLastN(14,key)),"14-day average") + '</div>' +
+      '<div class="card"><h3>Last 7 days</h3><div class="week-strip" id="weekStripDetail"></div></div>' +
+      '<div class="card">' +
+        '<div class="chart-toolbar"><div class="title">'+p.label+', last 14 days</div><button id="toggleView">'+(state.chartView==="chart"?"Table":"Chart")+'</button></div>' +
+        '<div class="chart-wrap" id="chartWrap"></div>' +
+        '<div class="insight">'+bestDayLine+'</div>' +
+      '</div>';
+
+    document.getElementById("backBtn").onclick = closePillar;
+    document.getElementById("toggleView").onclick = function(){ state.chartView = state.chartView==="chart"?"table":"chart"; renderDetail(key); };
+
+    var stripWrap = document.getElementById("weekStripDetail");
+    var last7 = state.history.slice(-7);
+    stripWrap.innerHTML = last7.length ? last7.map(function(h){
+      var score = scoreOf(h, key); var z = zoneOf(score); var height = 10 + (score/100)*24;
+      return '<div class="week-day"><div class="bar"><div style="width:100%;height:'+height+'px;border-radius:6px;background:'+z.color+'"></div></div><div class="lbl">'+weekdayShort(h.ts)+'</div></div>';
+    }).join("") : '<div class="insight">No check-ins yet this week.</div>';
+
+    if(state.chartView==="chart"){
+      if(state.history.length >= 2) drawChart(key);
+      else document.getElementById("chartWrap").innerHTML = '<div class="insight" style="padding:20px 0;text-align:center;">Check in on a couple more days to see your trend line here.</div>';
+    } else {
+      drawTable(key);
+    }
+  }
+
+  function drawTable(key){
+    var wrap = document.getElementById("chartWrap");
+    if(!state.history.length){
+      wrap.innerHTML = '<div class="insight" style="padding:20px 0;text-align:center;">No check-ins logged yet.</div>';
+      return;
+    }
+    var rows = state.history.map(function(h){ return '<tr><td>'+fmtDate(h.ts)+'</td><td>'+scoreOf(h,key)+'</td><td>'+(h.note||"—")+'</td></tr>'; }).join("");
+    wrap.innerHTML = '<table class="data-table"><thead><tr><th>Date</th><th>Score</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
+  function drawChart(key){
+    var wrap = document.getElementById("chartWrap");
+    var data = state.history;
+    var W=320,H=140,padL=26,padR=8,padT=12,padB=20;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var n=data.length, xStep=plotW/(n-1);
+    function xAt(i){ return padL+i*xStep; }
+    function yAt(v){ return padT+plotH-(v/100)*plotH; }
+    var gridLines="";
+    [0,25,50,75,100].forEach(function(v){ var y=yAt(v); gridLines+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="var(--gridline)" stroke-width="1"/>'; });
+    var pathD = data.map(function(h,i){ return (i===0?"M":"L")+xAt(i).toFixed(1)+","+yAt(scoreOf(h,key)).toFixed(1); }).join(" ");
+    var points = data.map(function(h,i){ return '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(scoreOf(h,key)).toFixed(1)+'" r="4" fill="var(--series-1)" stroke="var(--surface-1)" stroke-width="2"></circle>'; }).join("");
+    var last = data[n-1];
+    var lastLabel = '<text x="'+xAt(n-1).toFixed(1)+'" y="'+(yAt(scoreOf(last,key))-10).toFixed(1)+'" text-anchor="end" font-size="11" font-weight="800" fill="var(--text-primary)">'+scoreOf(last,key)+'</text>';
+    wrap.innerHTML =
+      '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" id="lineSvg">'+gridLines+
+      '<line x1="'+padL+'" y1="'+(padT+plotH)+'" x2="'+(W-padR)+'" y2="'+(padT+plotH)+'" stroke="var(--baseline)" stroke-width="1"/>'+
+      '<path d="'+pathD+'" fill="none" stroke="var(--series-1)" stroke-width="2"/>'+points+lastLabel+
+      '<line id="crosshair" x1="0" y1="'+padT+'" x2="0" y2="'+(padT+plotH)+'" stroke="var(--muted)" stroke-width="1" opacity="0"/></svg>'+
+      '<div class="tooltip" id="chartTooltip"></div>';
+    var svgEl=document.getElementById("lineSvg"), tooltip=document.getElementById("chartTooltip"), crosshair=document.getElementById("crosshair");
+    function showPoint(i){ var h=data[i]; crosshair.setAttribute("x1",xAt(i)); crosshair.setAttribute("x2",xAt(i)); crosshair.setAttribute("opacity","1"); tooltip.style.opacity="1"; tooltip.style.left=((xAt(i)/W)*100)+"%"; tooltip.style.top=((yAt(scoreOf(h,key))/H)*100)+"%"; tooltip.innerHTML="<strong>"+fmtDate(h.ts)+"</strong><br>Score "+scoreOf(h,key)+(h.note?"<br>"+h.note:""); }
+    function hidePoint(){ crosshair.setAttribute("opacity","0"); tooltip.style.opacity="0"; }
+    svgEl.addEventListener("mousemove", function(e){ var rect=svgEl.getBoundingClientRect(); var x=((e.clientX-rect.left)/rect.width)*W; var i=Math.round((x-padL)/xStep); if(i<0)i=0; if(i>n-1)i=n-1; showPoint(i); });
+    svgEl.addEventListener("mouseleave", hidePoint);
+  }
+
+  // ---------- Journal ----------
+  function renderJournal(){
+    var el = document.getElementById("view-journal");
+    var entries = state.history.slice().reverse().map(function(h){
+      var comp = compositeScoreOf(h); var zone = zoneOf(comp);
+      var breakdown = PILLARS.map(function(p){ return p.icon+' '+scoreOf(h,p.key); }).join("  ");
+      return '<div class="card" style="margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;">'+fmtDate(h.ts)+'</span>' +
+          '<span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--text-primary);"><span style="width:7px;height:7px;border-radius:50%;background:'+zone.color+';display:inline-block;"></span>'+comp+'</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+breakdown+'</div>' +
+        '<p>'+(h.note || "No note logged.")+'</p>' +
+      '</div>';
+    }).join("");
+    el.innerHTML = '<h2 class="page-title">Journal</h2>' + (entries || '<div class="card"><p>No check-ins yet. Your journal fills in as you go.</p></div>');
+  }
+
+  // ---------- Buddy (pet) ----------
+  function renderPet(){
+    var el = document.getElementById("view-pet");
+    var lvl = levelForPoints(state.points), xp = xpPctForPoints(state.points);
+    var totalCheckins = state.history.length;
+    var colorSwatches = PET_COLORS.map(function(c){ return '<div class="swatch '+(c===state.pet.color?"selected":"")+'" style="background:'+c+'" data-color="'+c+'"></div>'; }).join("");
+    var accBtns = ACCESSORIES.map(function(a){
+      var locked = state.longestStreak<a.unlockStreak && state.streak<a.unlockStreak;
+      return '<button class="acc-btn '+(a.id===state.pet.accessory?"selected":"")+' '+(locked?"locked":"")+'" data-acc="'+a.id+'" '+(locked?'disabled':'')+'>'+a.ic+(locked?'<span class="lock-badge">🔒'+a.unlockStreak+'d</span>':'')+'</button>';
+    }).join("");
+    var badgeItems = BADGES.map(function(b){
+      var locked = totalCheckins < b.threshold;
+      return '<div class="badge-item '+(locked?"locked":"")+'"><span class="bic">'+b.ic+'</span><span class="blbl">'+(locked?b.threshold+" check-ins":b.label)+'</span></div>';
+    }).join("");
+
+    el.innerHTML =
+      '<h2 class="page-title">Buddy</h2>' +
+      '<div class="pet-stage"><div class="pet-body">'+petFaceSvg(108)+petAccessoryIcon(30)+'</div></div>' +
+      '<div class="card" style="text-align:center;">' +
+        '<div style="display:flex;justify-content:center;align-items:center;gap:8px;">' +
+          '<span style="font-weight:800;font-size:15px;color:var(--text-primary);">'+state.pet.name+'</span>' +
+          '<span class="lvl">LV '+lvl+'</span>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:4px;">'+petStatusText()+'</div>' +
+        '<div class="xp-track" style="margin-top:10px;"><div class="xp-fill" style="width:'+xp+'%"></div></div>' +
+        '<div style="font-size:10px;color:var(--muted);margin-top:4px;">'+xp+' / 100 XP to level '+(lvl+1)+'</div>' +
+      '</div>' +
+      '<div class="card"><h3>Name</h3><input type="text" id="petNameInput" value="'+state.pet.name+'" maxlength="14"></div>' +
+      '<div class="card"><h3>Decorate</h3><p>Color</p><div class="swatch-row">'+colorSwatches+'</div><p style="margin-top:12px;">Accessories — unlock with longer streaks</p><div class="acc-row">'+accBtns+'</div></div>' +
+      '<div class="card"><h3>Badges — unlock with total check-ins</h3><div class="badge-grid">'+badgeItems+'</div></div>';
+
+    document.getElementById("petNameInput").onchange = function(e){ state.pet.name = e.target.value || "Buddy"; render(); };
+    el.querySelectorAll(".swatch[data-color]").forEach(function(s){ s.onclick=function(){ state.pet.color=s.getAttribute("data-color"); render(); }; });
+    el.querySelectorAll(".acc-btn").forEach(function(b){ b.onclick=function(){ if(b.disabled) return; state.pet.accessory=b.getAttribute("data-acc"); render(); }; });
+  }
+
+  // ---------- Settings ----------
+  function renderSettings(){
+    var el = document.getElementById("view-settings");
+    var remindersHtml = state.settings.customReminders.map(function(r,idx){ return '<div class="reminder-item"><span>'+r.label+' · '+fmtTime(r.time)+'</span><button data-remove="'+idx+'">✕</button></div>'; }).join("");
+    el.innerHTML =
+      '<h2 class="page-title">Settings</h2>' +
+      '<div class="card">' +
+        '<div class="row"><div><div class="lbl">Notifications</div><div class="desc">Reminders to check in</div></div><label class="switch"><input type="checkbox" id="notifToggle" '+(state.settings.notifications?"checked":"")+'><span class="toggle-slider"></span></label></div>' +
+        '<div class="row"><div><div class="lbl">Smart reminders</div><div class="desc">Time reminders around your schedule</div></div><label class="switch"><input type="checkbox" id="smartToggle" '+(state.settings.smartReminders?"checked":"")+'><span class="toggle-slider"></span></label></div>' +
+        '<div class="row"><div><div class="lbl">Daily reminder</div></div><input type="time" id="dailyTime" value="'+state.settings.dailyTime+'"></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="row"><div><div class="lbl">AI pattern alerts</div><div class="desc">Flag concerning trends across your 4 pillars and show a wellbeing summary (see Home)</div></div><label class="switch"><input type="checkbox" id="aiToggle" '+(state.settings.aiAlerts?"checked":"")+'><span class="toggle-slider"></span></label></div>' +
+      '</div>' +
+      '<div class="card"><h3>Reminders after activities</h3><p>Tie a reminder to practice, games, or your schedule.</p>'+remindersHtml+'<button class="add-btn" id="addReminderBtn">+ Add reminder</button></div>' +
+      '<div class="card"><h3>Rewards</h3><p>Streak milestones: 5-day (+25 pts), 10-day (+50 pts), 20-day and 35-day unlock new accessories for '+state.pet.name+'. Badges unlock at 5 / 15 / 30 / 50 total check-ins, streak or not.</p></div>' +
+      '<button class="btn-secondary" style="width:100%;" id="testNotifBtn">Send a test reminder</button>';
+    document.getElementById("notifToggle").onchange=function(e){ state.settings.notifications=e.target.checked; };
+    document.getElementById("smartToggle").onchange=function(e){ state.settings.smartReminders=e.target.checked; render(); };
+    document.getElementById("aiToggle").onchange=function(e){ state.settings.aiAlerts=e.target.checked; render(); };
+    document.getElementById("dailyTime").onchange=function(e){ state.settings.dailyTime=e.target.value; render(); };
+    document.getElementById("addReminderBtn").onclick=function(){ var label=prompt("Remind me after…","After practice"); if(!label) return; var time=prompt("What time? (e.g. 17:30)","17:30")||"17:30"; state.settings.customReminders.push({label:label,time:time}); render(); };
+    el.querySelectorAll("[data-remove]").forEach(function(b){ b.onclick=function(){ state.settings.customReminders.splice(parseInt(b.getAttribute("data-remove"),10),1); render(); }; });
+    document.getElementById("testNotifBtn").onclick=function(){ if(!state.settings.notifications){ showToast("Turn on notifications first"); return; } showToast("Time for your check-in"); };
+  }
+
+  // ---------- Check-in: full-screen, one question per screen, distinct widget per pillar,
+  // with an optional note field available on every step (not just the end). ----------
+  var CHECKIN_STEPS = PILLARS.length + 1; // 4 pillars + final wrap-up note
+
+  function openCheckin(){
+    state.checkin = {
+      step: 1,
+      answers: {energy:null, stress:null, sleep:null, motivation:null},
+      tags: {energy:[], stress:[], sleep:[], motivation:[]},
+      notes: {energy:"", stress:"", sleep:"", motivation:""},
+      noteOpen: {energy:false, stress:false, sleep:false, motivation:false},
+      followup: {energy:null, stress:null, sleep:null, motivation:null},
+      note: ""
+    };
+    renderCheckinScreen();
+  }
+  function closeCheckin(){ var b=document.getElementById("checkinScreen"); if(b) b.remove(); }
+  function currentPillarForStep(step){ return PILLARS[step-1]; }
+  function yesterdayEntry(){ return state.history[state.history.length-1] || null; }
+  function liveScoreFor(val){ return val ? LEVELS[val-1].score : 0; }
+  function liveRingHtml(val){
+    var score = liveScoreFor(val);
+    var color = val ? null : "var(--gridline)";
+    var textColor = val ? "var(--text-primary)" : "var(--muted)";
+    var textVal = val ? score : "–";
+    return '<div class="live-ring-wrap">' + ringSvg(score, 92, 10, false, color) + '<div class="live-ring-text" style="color:'+textColor+'">'+textVal+'</div></div>';
+  }
+
+  function stepDotsHtml(){
+    var dots = "";
+    for(var i=1;i<=CHECKIN_STEPS;i++){
+      var cls = i < state.checkin.step ? "done" : (i===state.checkin.step ? "current" : "");
+      dots += '<span class="sdot '+cls+'"></span>';
+    }
+    return '<div class="step-dots">'+dots+'</div>';
+  }
+
+  function renderCheckinScreen(){
+    var existing=document.getElementById("checkinScreen"); if(existing) existing.remove();
+    var screen=document.createElement("div"); screen.className="checkin-screen"; screen.id="checkinScreen";
+    var step = state.checkin.step;
+
+    var header = '<div class="checkin-header">' + stepDotsHtml() + '<button class="checkin-close" id="closeCheckin">✕</button></div>';
+    var body = "", footer = "";
+
+    if(step <= PILLARS.length){
+      var p = currentPillarForStep(step);
+      var val = state.checkin.answers[p.key];
+      var noteOpen = state.checkin.noteOpen[p.key] || !!state.checkin.notes[p.key];
+      var yEntry = yesterdayEntry();
+      var yLevel = yEntry ? yEntry[p.key] : null;
+      var yZone = yLevel ? zoneOf(LEVELS[yLevel-1].score) : null;
+
+      body += '<div class="q-body-rich">';
+
+      // Live ring preview, tied to the same ring visual language as the rest of the app,
+      // plus a same-pillar comparison against yesterday's answer.
+      body += '<div class="q-topline">' +
+        '<div id="liveRingOuter">' + liveRingHtml(val) + '</div>' +
+        '<div class="plabel">'+p.icon+' '+p.label+'</div>' +
+        (yLevel ? '<div class="q-compare"><span class="ydot" style="background:'+yZone.color+'"></span>Yesterday: '+p.labels[yLevel-1]+'</div>' : '') +
+      '</div>';
+
+      body += '<div class="q-text-rich">'+p.question+'</div>';
+
+      if(p.widget === "emoji"){
+        var btns = p.emojis.map(function(em, idx){
+          var v = idx+1;
+          return '<button class="emoji-btn '+(val===v?"selected":"")+'" data-val="'+v+'"><span>'+em+'</span><span class="elbl">'+p.labels[idx]+'</span></button>';
+        }).join("");
+        body += '<div class="emoji-row">'+btns+'</div>';
+      } else if(p.widget === "slider"){
+        var sliderVal = val || 3;
+        body += '<div class="slider-wrap">' +
+          '<div class="slider-caption" id="sliderCaption">'+(val?p.labels[val-1]:"Slide to answer")+'</div>' +
+          '<input type="range" class="pillar-range" id="pillarRange" min="1" max="5" step="1" value="'+sliderVal+'">' +
+          '<div class="slider-endlabels"><span>Overloaded</span><span>Fully charged</span></div>' +
+        '</div>';
+      } else if(p.widget === "rating"){
+        var icons = [1,2,3,4,5].map(function(v){
+          return '<button class="rating-icon '+(val && v<=val ? "filled":"")+'" data-val="'+v+'">'+p.ratingIcon+'</button>';
+        }).join("");
+        body += '<div class="rating-row">'+icons+'</div><div class="rating-caption">'+(val?p.labels[val-1]:"")+'</div>';
+      }
+
+      if(val){
+        var fu = state.checkin.followup[p.key];
+        if(!fu || fu.forVal !== val){
+          // New or changed answer — show a loading state immediately and kick off the real
+          // request (Claude live if the backend's running, science-grounded local map if not).
+          state.checkin.followup[p.key] = { forVal: val, loading:true, question:null, chips:[], skip:false, source:null };
+          fu = state.checkin.followup[p.key];
+          scheduleFollowupRequest(p.key, val);
+        }
+        if(fu.loading){
+          body += '<div class="chip-section"><div class="chip-prompt">Thinking about what fits…</div></div>';
+        } else if(!fu.skip){
+          var chipBtns = fu.chips.map(function(c){
+            var selected = state.checkin.tags[p.key].indexOf(c) !== -1;
+            return '<button class="chip '+(selected?"selected":"")+'" data-chip="'+c+'">'+c+'</button>';
+          }).join("");
+          body += '<div class="chip-section"><div class="chip-prompt">'+fu.question+' (optional)</div><div class="chip-row">'+chipBtns+'</div></div>';
+        }
+      }
+
+      if(noteOpen){
+        body += '<div class="note-area-wrap"><textarea id="pillarNoteInput" placeholder="Add anything else about this — optional">'+state.checkin.notes[p.key]+'</textarea></div>';
+      } else {
+        body += '<button class="note-toggle" id="noteToggleBtn">+ Add a note</button>';
+      }
+      body += '</div>';
+
+      footer = '<div class="modal-actions">' +
+        (step>1 ? '<button class="btn-secondary" id="backCheckin">Back</button>' : '') +
+        '<button class="btn-primary" id="nextCheckin" '+(val?"":"disabled")+'>Next</button>' +
+      '</div>';
+    } else {
+      body += '<div class="q-body" style="justify-content:flex-start;padding-top:20px;">' +
+        '<div class="q-text">Anything else you want to add about today?</div>' +
+        '<textarea id="noteInput" placeholder="Type as much or as little as you want… or skip" style="min-height:140px;">'+state.checkin.note+'</textarea>' +
+      '</div>';
+      footer = '<div class="modal-actions"><button class="btn-secondary" id="backCheckin">Back</button><button class="btn-primary" id="submitCheckin">Finish check-in</button></div>';
+    }
+
+    screen.innerHTML = header + '<div class="checkin-content">'+body+'</div>' + '<div class="checkin-footer">'+footer+'</div>';
+    document.getElementById("phone").appendChild(screen);
+    document.getElementById("closeCheckin").onclick = closeCheckin;
+
+    if(step <= PILLARS.length){
+      var p2 = currentPillarForStep(step);
+      if(p2.widget === "emoji"){
+        screen.querySelectorAll(".emoji-btn").forEach(function(b){
+          b.onclick=function(){ state.checkin.answers[p2.key]=parseInt(b.getAttribute("data-val"),10); renderCheckinScreen(); };
+        });
+      } else if(p2.widget === "slider"){
+        var range = document.getElementById("pillarRange"), cap = document.getElementById("sliderCaption"), liveRingOuter = document.getElementById("liveRingOuter");
+        range.oninput = function(){
+          var v=parseInt(range.value,10);
+          cap.textContent = p2.labels[v-1];
+          state.checkin.answers[p2.key]=v;
+          document.getElementById("nextCheckin").disabled=false;
+          liveRingOuter.innerHTML = liveRingHtml(v);
+        };
+        range.onchange = function(){ renderCheckinScreen(); }; // reveal chips + full state once the user lets go
+      } else if(p2.widget === "rating"){
+        screen.querySelectorAll(".rating-icon").forEach(function(b){
+          b.onclick=function(){ state.checkin.answers[p2.key]=parseInt(b.getAttribute("data-val"),10); renderCheckinScreen(); };
+        });
+      }
+      var noteToggle = document.getElementById("noteToggleBtn");
+      if(noteToggle) noteToggle.onclick = function(){ state.checkin.noteOpen[p2.key] = true; renderCheckinScreen(); };
+      var pillarNoteInput = document.getElementById("pillarNoteInput");
+      if(pillarNoteInput) pillarNoteInput.oninput = function(e){ state.checkin.notes[p2.key] = e.target.value; };
+      screen.querySelectorAll(".chip").forEach(function(c){
+        c.onclick = function(){
+          var arr = state.checkin.tags[p2.key];
+          var val2 = c.getAttribute("data-chip");
+          var idx = arr.indexOf(val2);
+          if(idx===-1) arr.push(val2); else arr.splice(idx,1);
+          renderCheckinScreen();
+        };
+      });
+
+      var backBtn = document.getElementById("backCheckin"); if(backBtn) backBtn.onclick = function(){ state.checkin.step--; renderCheckinScreen(); };
+      document.getElementById("nextCheckin").onclick = function(){ if(!state.checkin.answers[p2.key]) return; state.checkin.step++; renderCheckinScreen(); };
+    } else {
+      document.getElementById("noteInput").oninput=function(e){ state.checkin.note=e.target.value; };
+      document.getElementById("backCheckin").onclick=function(){ state.checkin.step--; renderCheckinScreen(); };
+      document.getElementById("submitCheckin").onclick=submitCheckin;
+    }
+  }
+
+  function submitCheckin(){
+    var a = state.checkin.answers, notes = state.checkin.notes, tags = state.checkin.tags, note = state.checkin.note;
+    // Combine per-question tags/notes with the general note into one readable log entry.
+    var parts = [];
+    PILLARS.forEach(function(p){
+      var bits = [];
+      if(tags[p.key] && tags[p.key].length) bits.push(tags[p.key].join(", "));
+      if(notes[p.key]) bits.push(notes[p.key]);
+      if(bits.length) parts.push(p.icon+" "+bits.join(" — "));
+    });
+    if(note) parts.push(note);
+    var combinedNote = parts.join(" · ");
+
+    var now = Date.now();
+    var prevEntry = state.history.length ? state.history[state.history.length-1] : null;
+    state.history.push({ts:now, energy:a.energy, stress:a.stress, sleep:a.sleep, motivation:a.motivation, note:combinedNote});
+    // Honest streak logic: only extends the streak if the previous check-in was exactly
+    // yesterday. Miss a day (or more) and it resets to 1 instead of silently continuing.
+    if(prevEntry && daysBetweenLocal(prevEntry.ts, now) === 1){ state.streak += 1; } else { state.streak = 1; }
+    state.checkedInToday=true; if(state.streak>state.longestStreak) state.longestStreak=state.streak;
+    var earned=10; if(state.streak>1) earned+=5; state.points+=earned;
+    closeCheckin();
+    var milestoneMsg="";
+    if(state.streak===5) milestoneMsg=" 5-day streak! +25 bonus points.";
+    if(state.streak===10) milestoneMsg=" 10-day streak! +50 bonus points.";
+    if(state.streak===20) milestoneMsg=" 20-day streak! New accessory unlocked.";
+    if(state.streak===35) milestoneMsg=" 35-day streak! New accessory unlocked.";
+    if(state.streak===5||state.streak===10) state.points += (state.streak===5?25:50);
+    if(state.history.length===5||state.history.length===15||state.history.length===30||state.history.length===50) milestoneMsg += " New badge earned!";
+    render();
+    showToast("+"+earned+" points · check-in logged."+milestoneMsg, 3600);
+  }
+
+  // ---------- Post-practice check-in: a separate, longer flow from the daily 4-pillar
+  // check-in. Uses labeled numeric scales grounded in real training-load monitoring
+  // (Session-RPE, Perceived Recovery Status, DOMS soreness) instead of emoji taps, plus a
+  // duration input so it can compute an actual training-load number and track it over time.
+  function openPracticeCheckin(){
+    state.practiceCheckin = { step:1, duration:60, sessionType:null, rpe:null, recovery:null, soreness:null, note:"" };
+    renderPracticeCheckinScreen();
+  }
+  function closePracticeCheckin(){ var b=document.getElementById("practiceCheckinScreen"); if(b) b.remove(); }
+
+  function practiceStepDotsHtml(){
+    var dots = "";
+    for(var i=1;i<=PRACTICE_TOTAL_STEPS;i++){
+      var cls = i < state.practiceCheckin.step ? "done" : (i===state.practiceCheckin.step ? "current" : "");
+      dots += '<span class="sdot '+cls+'"></span>';
+    }
+    return '<div class="step-dots">'+dots+'</div>';
+  }
+
+  // Live 0-10 ring preview, reusing the same ring visual language as the pillar check-in
+  // (scaled x10 so it maps onto the existing 0-100 ringSvg).
+  function liveRingHtml10(val){
+    var has = val!==null && val!==undefined;
+    var score = has ? val*10 : 0;
+    var color = has ? null : "var(--gridline)";
+    var textColor = has ? "var(--text-primary)" : "var(--muted)";
+    var textVal = has ? val : "–";
+    return '<div class="live-ring-wrap">' + ringSvg(score, 92, 10, false, color) + '<div class="live-ring-text" style="color:'+textColor+'">'+textVal+'</div></div>';
+  }
+
+  function renderPracticeCheckinScreen(){
+    var existing=document.getElementById("practiceCheckinScreen"); if(existing) existing.remove();
+    var screen=document.createElement("div"); screen.className="checkin-screen"; screen.id="practiceCheckinScreen";
+    var pc = state.practiceCheckin;
+    var step = pc.step;
+
+    var header = '<div class="checkin-header">' + practiceStepDotsHtml() + '<button class="checkin-close" id="closePracticeCheckin">✕</button></div>';
+    var body = "", footer = "";
+
+    if(step === 1){
+      var typeChips = SESSION_TYPES.map(function(t){
+        var sel = pc.sessionType === t;
+        return '<button class="chip '+(sel?"selected":"")+'" data-type="'+t+'">'+t+'</button>';
+      }).join("");
+      body += '<div class="q-body-rich">' +
+        '<div class="q-topline"><div class="plabel">⏱️ Session length</div></div>' +
+        '<div class="q-text-rich">How long was today\'s session?</div>' +
+        '<div class="slider-wrap">' +
+          '<div class="slider-caption" id="durCaption">'+pc.duration+' min</div>' +
+          '<input type="range" class="pillar-range" id="durRange" min="0" max="180" step="5" value="'+pc.duration+'">' +
+          '<div class="slider-endlabels"><span>0 min</span><span>180 min</span></div>' +
+        '</div>' +
+        '<div class="chip-section"><div class="chip-prompt">Session type (optional)</div><div class="chip-row">'+typeChips+'</div></div>' +
+      '</div>';
+      footer = '<div class="modal-actions"><button class="btn-primary" id="nextPractice" style="flex:1;">Next</button></div>';
+    } else if(step >= 2 && step <= 4){
+      var cfg = PRACTICE_STEPS[step-2];
+      var val = pc[cfg.key];
+      var sliderStart = (val===null||val===undefined) ? Math.round((cfg.min+cfg.max)/2) : val;
+      body += '<div class="q-body-rich">' +
+        '<div class="q-topline">' + liveRingHtml10(val) + '<div class="plabel">'+cfg.icon+' '+cfg.label+'</div></div>' +
+        '<div class="q-text-rich">'+cfg.question+'</div>' +
+        '<div class="slider-wrap">' +
+          '<div class="slider-caption" id="practiceCaption">'+((val===null||val===undefined)?"Slide to answer":cfg.captionFn(val))+'</div>' +
+          '<input type="range" class="pillar-range" id="practiceRange" min="'+cfg.min+'" max="'+cfg.max+'" step="1" value="'+sliderStart+'">' +
+          '<div class="slider-endlabels"><span>'+cfg.endLabels[0]+'</span><span>'+cfg.endLabels[1]+'</span></div>' +
+        '</div>' +
+        '<div class="card" style="margin-top:22px;text-align:left;"><p style="font-size:11.5px;">'+cfg.blurb+'</p></div>' +
+      '</div>';
+      footer = '<div class="modal-actions"><button class="btn-secondary" id="backPractice">Back</button><button class="btn-primary" id="nextPractice" '+((val===null||val===undefined)?"disabled":"")+'>Next</button></div>';
+    } else {
+      var load = pc.duration * pc.rpe;
+      body += '<div class="q-body" style="justify-content:flex-start;padding-top:10px;">' +
+        '<div class="q-text">Anything else about this session?</div>' +
+        '<textarea id="practiceNoteInput" placeholder="Optional — e.g. what you worked on, how it went" style="min-height:100px;">'+pc.note+'</textarea>' +
+        '<div class="card" style="margin-top:18px;width:100%;text-align:left;"><h3>Training load</h3>' +
+          '<p><strong style="color:var(--text-primary);font-size:16px;">'+load+' AU</strong> — duration × session-RPE (Foster\'s method). Logging this over time is what lets Bloom flag sudden load spikes, which is when injury risk goes up.</p></div>' +
+      '</div>';
+      footer = '<div class="modal-actions"><button class="btn-secondary" id="backPractice">Back</button><button class="btn-primary" id="submitPractice">Finish</button></div>';
+    }
+
+    screen.innerHTML = header + '<div class="checkin-content">'+body+'</div>' + '<div class="checkin-footer">'+footer+'</div>';
+    document.getElementById("phone").appendChild(screen);
+    document.getElementById("closePracticeCheckin").onclick = closePracticeCheckin;
+
+    if(step === 1){
+      var durRange = document.getElementById("durRange"), durCaption = document.getElementById("durCaption");
+      durRange.oninput = function(){ var v=parseInt(durRange.value,10); pc.duration=v; durCaption.textContent=v+" min"; };
+      screen.querySelectorAll("[data-type]").forEach(function(b){
+        b.onclick = function(){ var t=b.getAttribute("data-type"); pc.sessionType = (pc.sessionType===t?null:t); renderPracticeCheckinScreen(); };
+      });
+      document.getElementById("nextPractice").onclick = function(){ pc.step++; renderPracticeCheckinScreen(); };
+    } else if(step >= 2 && step <= 4){
+      var cfg2 = PRACTICE_STEPS[step-2];
+      var range = document.getElementById("practiceRange"), cap = document.getElementById("practiceCaption");
+      range.oninput = function(){
+        var v = parseInt(range.value,10);
+        pc[cfg2.key] = v;
+        cap.textContent = cfg2.captionFn(v);
+        document.getElementById("nextPractice").disabled = false;
+      };
+      range.onchange = function(){ renderPracticeCheckinScreen(); }; // reveal live ring + full state once released
+      var backBtn = document.getElementById("backPractice"); if(backBtn) backBtn.onclick = function(){ pc.step--; renderPracticeCheckinScreen(); };
+      document.getElementById("nextPractice").onclick = function(){ if(pc[cfg2.key]===null||pc[cfg2.key]===undefined) return; pc.step++; renderPracticeCheckinScreen(); };
+    } else {
+      document.getElementById("practiceNoteInput").oninput = function(e){ pc.note = e.target.value; };
+      document.getElementById("backPractice").onclick = function(){ pc.step--; renderPracticeCheckinScreen(); };
+      document.getElementById("submitPractice").onclick = submitPracticeCheckin;
+    }
+  }
+
+  function submitPracticeCheckin(){
+    var pc = state.practiceCheckin;
+    var load = pc.duration * pc.rpe;
+    state.practiceLogs.push({
+      ts: Date.now(),
+      duration: pc.duration, rpe: pc.rpe, recovery: pc.recovery, soreness: pc.soreness,
+      load: load, sessionType: pc.sessionType, note: pc.note
+    });
+    closePracticeCheckin();
+    var zone = loadTrendZone();
+    var msg = "Session logged — training load "+load+" AU.";
+    if(zone && zone.name==="Elevated") msg += " That's a notable jump from your recent average.";
+    render();
+    showToast(msg, 4200);
+  }
+
+  document.querySelectorAll(".tabbar button").forEach(function(b){ b.onclick=function(){ state.tab=b.getAttribute("data-tab"); state.detailPillar=null; state.showInsights=false; state.showPracticeLog=false; render(); }; });
+
+  function updateStatusClock(){
+    var el = document.getElementById("statusClock");
+    if(!el) return;
+    var d = new Date(); var h = d.getHours(), m = d.getMinutes();
+    var ap = h>=12?"PM":"AM"; var h12 = h%12; if(h12===0) h12=12;
+    el.textContent = h12+":"+(m<10?"0":"")+m+" "+ap;
+  }
+  updateStatusClock();
+  setInterval(updateStatusClock, 30000);
+
+  render();
+})();
+</script>
+</body>
+</html>
