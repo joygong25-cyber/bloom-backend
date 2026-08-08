@@ -290,7 +290,7 @@
     var shapes = {
       energy: '<path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor"/>',
       stress: '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8h14M7 8l-3 6a3 3 0 0 0 6 0zM17 8l-3 6a3 3 0 0 0 6 0z"/></g>',
-      sleep: '<path d="M20.5 14.4A8.5 8.5 0 1 1 9.6 3.5a7 7 0 0 0 10.9 10.9z" fill="currentColor"/>',
+      sleep: '<path d="M5 6h14l-9.5 11H19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
       motivation: '<path d="M12 2c1.2 3-2.7 4.4-2.7 8.2a2.7 2.7 0 0 0 5.4 0c0-.9-.3-1.6-.7-2.3 2 1.3 3.5 3.9 3.5 6.6a5.5 5.5 0 1 1-11 0C6.5 9 9 6 12 2z" fill="currentColor"/>'
     };
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-2px;">'+(shapes[key]||"")+'</svg>';
@@ -335,7 +335,7 @@
       question:"Where do you sit between overloaded and fully recovered right now?",
       labels:["Overloaded","Strained","Balanced","Recovered","Fully charged"],
       blurb:"Studies on adolescent elite athletes found perceived stress and recovery balance directly predicts burnout, depressive symptoms, and insomnia — it's not just about how hard you train, but whether recovery keeps up." },
-    { key:"sleep", label:"Sleep", icon:pillarIconSvg("sleep"), widget:"rating", ratingIcon:pillarIconSvg("sleep", 26),
+    { key:"sleep", label:"Sleep", icon:pillarIconSvg("sleep"), widget:"emoji",
       question:"How was your sleep last night?",
       labels:["Poor","Rough","Okay","Good","Great"],
       blurb:"Sleep quality is one of the most consistent predictors of burnout in youth athletes — poor sleep compounds fatigue and mood disturbance over just a few nights." },
@@ -600,6 +600,37 @@
     }
     return alerts;
   }
+  // ---- Sparse-data insights (1-2 check-ins) — a single day can't show a real trend, but it
+  // can still point at whichever pillar is lowest right now and give a specific, evidence-
+  // based tip for it, instead of just saying "not enough data" and giving nothing useful.
+  var PILLAR_TIPS = {
+    energy: "Exhaustion is the strongest single predictor of burnout in the validated Athlete Burnout Questionnaire — an extra rest day or an earlier bedtime this week can measurably move it.",
+    stress: "Perceived stress-recovery balance predicts burnout and insomnia in adolescent athletes independent of training volume — one deliberate recovery activity today (an easy walk, stretching, unstructured downtime) helps more than it seems like it would.",
+    sleep: "Sleep quality is one of the most consistent predictors of burnout in youth athletes — a consistent bedtime and less screen time in the hour before bed are the two highest-leverage changes.",
+    motivation: "Losing your sense of accomplishment or enjoyment is its own measurable burnout dimension, separate from fatigue — research on motivation (Self-Determination Theory) points to reconnecting with autonomy (a choice that's really yours) or relatedness (time with teammates) as what tends to help most."
+  };
+  function extremePillarInEntry(h, findMax){
+    var picked=null, pickedScore=findMax?-1:999;
+    PILLARS.forEach(function(p){
+      var s = scoreOf(h,p.key);
+      if((findMax && s>pickedScore) || (!findMax && s<pickedScore)){ pickedScore=s; picked=p; }
+    });
+    return { pillar:picked, score:pickedScore };
+  }
+  function sparseDataFallback(){
+    var latest = state.history[state.history.length-1];
+    var weak = extremePillarInEntry(latest, false);
+    var strong = extremePillarInEntry(latest, true);
+    var n = state.history.length;
+    var alerts = [{
+      icon: weak.pillar.icon,
+      severity: weak.score < 55 ? "warn" : "good",
+      text: weak.pillar.label+" is your lowest pillar right now at "+weak.score+"/100. "+PILLAR_TIPS[weak.pillar.key],
+      time: "Today"
+    }];
+    var narrative = "You've logged "+n+" check-in"+(n===1?"":"s")+" so far — not quite enough yet to spot a real trend, but here's an early read: <strong>"+weak.pillar.label+"</strong> is your lowest pillar at "+weak.score+"/100, while <strong>"+strong.pillar.label+"</strong> is strongest at "+strong.score+"/100. Keep checking in daily and this sharpens into a genuine trend instead of a single snapshot.";
+    return { alerts: alerts, narrative: narrative };
+  }
   function generateWellbeingNarrative(){
     var avg14 = Math.round(avgScoreLastN(14));
     var delta = weekOverWeekDelta(null);
@@ -773,8 +804,8 @@
       return '<div class="alert-card">'+(a.icon?'<div class="a-ic">'+a.icon+'</div>':'')+'<div><div class="a-text">'+a.text+'</div><div class="a-time">'+time+'</div></div></div>';
     }).join("");
     var banner = source === "live"
-      ? '<div class="ai-banner">Live from Claude — this analysis was generated in real time by the backend in bloom-backend/server.js.</div>'
-      : '<div class="ai-banner">Local preview: couldn\'t reach the AI backend at '+AI_BACKEND_URL+', so this is the built-in rule-based fallback computed from your real check-in data. Run bloom-backend/server.js (see its README) to see Claude\'s actual analysis here instead.</div>';
+      ? '<div class="ai-banner">Generated live from your real check-in data.</div>'
+      : '<div class="ai-banner">Local preview: couldn\'t reach the AI backend, so this is the built-in science-grounded fallback computed from your real check-in data instead.</div>';
     el.innerHTML =
       '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
       banner +
@@ -788,7 +819,7 @@
     var el = document.getElementById("view-insights");
     el.innerHTML =
       '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
-      '<div class="ai-banner">Asking Claude to analyze your check-ins…</div>';
+      '<div class="ai-banner">Analyzing your check-ins…</div>';
     document.getElementById("insightsBack").onclick = closeInsights;
   }
 
@@ -802,12 +833,12 @@
     var el = document.getElementById("view-insights");
     el.innerHTML =
       '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
-      '<div class="card"><h3>Not enough data yet</h3><p>Check in for a few more days and Bloom (powered by Claude) will start surfacing real patterns and a wellbeing summary here.</p></div>';
+      '<div class="card"><h3>Log your first check-in</h3><p>As soon as you check in once, Bloom will give you a personalized, science-backed read on whichever pillar needs the most attention — and it gets sharper as more days come in.</p></div>';
     document.getElementById("insightsBack").onclick = closeInsights;
   }
 
   function renderInsights(){
-    if(state.history.length < 3){ renderNotEnoughDataInsights(); return; }
+    if(state.history.length < 1){ renderNotEnoughDataInsights(); return; }
     renderInsightsLoading();
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 3000);
@@ -828,6 +859,11 @@
     .catch(function(){
       clearTimeout(timeout);
       if(!state.showInsights) return;
+      if(state.history.length < 3){
+        var sd = sparseDataFallback();
+        renderAlertsAndNarrative(sd.alerts, sd.narrative, "local");
+        return;
+      }
       renderAlertsAndNarrative(detectAlerts(), generateWellbeingNarrative(), "local");
     });
   }
@@ -884,7 +920,8 @@
   function renderHome(){
     var el = document.getElementById("view-home");
     var hasHistory = state.history.length > 0;
-    var hasEnoughForInsights = state.history.length >= 3;
+    var hasAnyDataForInsights = state.history.length >= 1;
+    var hasFullTrendData = state.history.length >= 3;
     var todayScore = state.checkedInToday ? compositeScoreOf(state.history[state.history.length-1]) : Math.round(avgScoreLastN(7));
     var zone = zoneOf(todayScore);
 
@@ -904,11 +941,11 @@
 
     var lvl = levelForPoints(state.points);
     var xp = xpPctForPoints(state.points);
-    var alerts = hasEnoughForInsights ? detectAlerts() : [];
+    var alerts = hasFullTrendData ? detectAlerts() : (hasAnyDataForInsights ? sparseDataFallback().alerts : []);
     var hasWarn = alerts.some(function(a){ return a.severity==="warn"; });
-    var aiPreview = !hasEnoughForInsights
-      ? "Check in a few times and I'll start surfacing patterns here."
-      : (hasWarn ? alerts.filter(function(a){return a.severity==="warn";})[0].text : "No concerning patterns this week — tap for your full summary.");
+    var aiPreview = !hasAnyDataForInsights
+      ? "Check in and I'll start giving you personalized tips here."
+      : (hasWarn ? alerts.filter(function(a){return a.severity==="warn";})[0].text : (hasFullTrendData ? "No concerning patterns this week — tap for your full summary." : "Tap for an early read on your data."));
 
     var loadZone = loadTrendZone();
     var lastLog = state.practiceLogs.length ? state.practiceLogs[state.practiceLogs.length-1] : null;
