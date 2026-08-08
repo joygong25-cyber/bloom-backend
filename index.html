@@ -80,13 +80,20 @@
   .back-row .arrow { font-size: 16px; color: var(--text-primary); }
   .back-row .btitle { font-size: 13px; font-weight: 700; color: var(--text-primary); text-transform:uppercase; letter-spacing:0.04em; }
 
-  /* AI Insights */
+  /* AI Insights — tinted (not white, unlike the plain cards around it) and given a quiet
+     chevron affordance so it visually registers as the one worth tapping, without adding
+     any icon/emoji clutter. Only #aiCard gets the tint — #loadCard shares the same base
+     layout class but stays plain white, so the tint reads as "this one's different" rather
+     than being just another color everything has. */
   .ai-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; margin-bottom: 14px; display:flex; align-items:center; gap: 12px; cursor:pointer; position:relative; }
+  #aiCard { background: var(--accent-soft); border-color: rgba(20,168,146,0.28); }
   .ai-card .ai-ic { font-size: 22px; width:40px; height:40px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .ai-card .ai-body { flex:1; min-width:0; }
   .ai-card .ai-title { font-size: 12.5px; font-weight:800; color: var(--text-primary); }
   .ai-card .ai-sub { font-size: 11px; color: var(--muted); margin-top:2px; }
+  #aiCard .ai-sub { color: var(--text-secondary); }
   .ai-card .ai-dot { position:absolute; top:12px; right:14px; width:8px; height:8px; border-radius:50%; background: var(--warning); }
+  .ai-card .ai-chevron { flex-shrink:0; color: var(--accent); opacity: 0.7; }
   .ai-banner { background: var(--surface-2); border: 1px dashed var(--border); border-radius: 14px; padding: 12px 14px; font-size: 11.5px; color: var(--muted); line-height:1.5; margin-bottom: 14px; }
   .alert-card { display:flex; gap: 12px; padding: 14px 16px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 10px; }
   .alert-card .a-ic { font-size: 18px; flex-shrink:0; margin-top:1px; }
@@ -178,12 +185,14 @@
   .q-text-rich { font-size: 17px; font-weight: 800; color: var(--text-primary); line-height:1.4; margin-bottom: 24px; padding: 0 4px; }
 
   .emoji-row { display:flex; justify-content:space-between; gap: 8px; width:100%; }
-  .emoji-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding: 16px 4px; border-radius: 16px; border: 1.5px solid var(--border); background: var(--surface-2); cursor:pointer; font-size: 28px; }
+  .emoji-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; padding: 16px 4px; border-radius: 16px; border: 1.5px solid var(--border); background: var(--surface-2); cursor:pointer; }
+  .emoji-btn .elvl { color: var(--muted); }
   .emoji-btn .elbl { font-size: 9.5px; color: var(--text-secondary); font-weight:700; text-transform:uppercase; }
   .emoji-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .emoji-btn.selected .elvl { color: var(--accent); }
 
   .rating-row { display:flex; justify-content:center; gap: 14px; }
-  .rating-icon { font-size: 42px; background:none; border:none; cursor:pointer; opacity: 0.28; transition: opacity .15s, transform .1s; padding:0; }
+  .rating-icon { background:none; border:none; cursor:pointer; opacity: 0.28; transition: opacity .15s, transform .1s; padding:0; color: var(--accent); }
   .rating-icon.filled { opacity: 1; transform: scale(1.1); }
   .rating-caption { margin-top: 20px; font-size: 15px; font-weight: 700; color: var(--accent); min-height: 20px; }
 
@@ -194,9 +203,14 @@
   input[type="range"].pillar-range::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); border: 4px solid var(--surface-1); cursor:pointer; }
   .slider-endlabels { display:flex; justify-content:space-between; margin-top: 10px; font-size: 9.5px; color: var(--muted); font-weight:700; text-transform:uppercase; }
 
-  /* Follow-up "what's contributing" chips — reveal after an answer is picked */
-  .chip-section { width:100%; margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--gridline); }
+  /* Follow-up "what's contributing" chips — reveal after an answer is picked. Fades in on
+     mount (both the "thinking" state and the real question replacing it) instead of just
+     popping into place, so the swap reads as a smooth reveal rather than a flash. */
+  @keyframes chipFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes thinkPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+  .chip-section { width:100%; margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--gridline); animation: chipFadeIn .3s ease; }
   .chip-prompt { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom: 10px; }
+  .chip-prompt.thinking { animation: thinkPulse 1.2s ease-in-out infinite; }
   .chip-row { display:flex; flex-wrap:wrap; gap: 8px; justify-content:center; }
   .chip { padding: 8px 13px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface-2); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor:pointer; }
   .chip.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
@@ -267,26 +281,65 @@
     {v:1, score:15}, {v:2, score:38}, {v:3, score:58}, {v:4, score:80}, {v:5, score:97}
   ];
 
+  // ---- Minimal monoline icons (SVG, currentColor) replacing native emoji glyphs. Native
+  // emoji render in fixed, clashing colors (a yellow bolt, a red flame) no matter what
+  // theme surrounds them — these instead inherit whatever color their container sets, so
+  // they sit quietly inside the light/muted palette instead of popping out of it.
+  function pillarIconSvg(key, size){
+    size = size || 15;
+    var shapes = {
+      energy: '<path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor"/>',
+      stress: '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8h14M7 8l-3 6a3 3 0 0 0 6 0zM17 8l-3 6a3 3 0 0 0 6 0z"/></g>',
+      sleep: '<path d="M20.5 14.4A8.5 8.5 0 1 1 9.6 3.5a7 7 0 0 0 10.9 10.9z" fill="currentColor"/>',
+      motivation: '<path d="M12 2c1.2 3-2.7 4.4-2.7 8.2a2.7 2.7 0 0 0 5.4 0c0-.9-.3-1.6-.7-2.3 2 1.3 3.5 3.9 3.5 6.6a5.5 5.5 0 1 1-11 0C6.5 9 9 6 12 2z" fill="currentColor"/>'
+    };
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-2px;">'+(shapes[key]||"")+'</svg>';
+  }
+  function practiceIconSvg(key, size){
+    size = size || 15;
+    var shapes = {
+      rpe: '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-4M9 4.5h6"/></g>',
+      recovery: '<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="17" height="8" rx="2" fill="none"/><path d="M22 10.5v3"/><rect x="4.5" y="10.5" width="8" height="3" fill="currentColor" stroke="none"/></g>',
+      soreness: '<path d="M2.5 13h4l2-7 4 14 2-7h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'
+    };
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-2px;">'+(shapes[key]||"")+'</svg>';
+  }
+  // Bar-graph "level" icon for the energy answer buttons — replaces 5 cartoon faces with a
+  // plain intensity indicator, consistent with the ring/chart visual language used everywhere
+  // else in the app instead of an unrelated illustration style.
+  function levelBarsSvg(level, size){
+    size = size || 24;
+    var barW = Math.max(2, Math.round(size*0.12)), gap = Math.max(1.5, Math.round(size*0.09));
+    var bars = "", x = 0, i;
+    for(i=1;i<=5;i++){
+      var bh = size * (0.35 + 0.65*(i/5));
+      var y = size - bh;
+      bars += '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+bh+'" rx="'+(barW/2)+'" fill="'+(i<=level?"currentColor":"var(--gridline)")+'"/>';
+      x += barW + gap;
+    }
+    var totalW = x - gap;
+    return '<svg width="'+totalW+'" height="'+size+'" viewBox="0 0 '+totalW+' '+size+'" style="display:block;">'+bars+'</svg>';
+  }
+
   // 4 pillars grounded in athlete-burnout research (Athlete Burnout Questionnaire's
   // exhaustion / reduced-accomplishment / devaluation dimensions, plus sleep and
   // perceived stress-recovery balance from adolescent-athlete studies). Each uses a
   // different check-in widget and its own wording, so the four questions don't feel
   // like copies of each other.
   var PILLARS = [
-    { key:"energy", label:"Energy", icon:"⚡", widget:"emoji",
+    { key:"energy", label:"Energy", icon:pillarIconSvg("energy"), widget:"emoji",
       question:"How energized do you feel today?",
       labels:["Drained","Low","Okay","Energized","Amped"],
-      emojis:["😞","😕","😐","🙂","😄"],
       blurb:"Physical and emotional exhaustion is the strongest single predictor in the validated Athlete Burnout Questionnaire — catching a downward trend early is the whole point of tracking it." },
-    { key:"stress", label:"Stress Balance", icon:"⚖️", widget:"slider",
+    { key:"stress", label:"Stress Balance", icon:pillarIconSvg("stress"), widget:"slider",
       question:"Where do you sit between overloaded and fully recovered right now?",
       labels:["Overloaded","Strained","Balanced","Recovered","Fully charged"],
       blurb:"Studies on adolescent elite athletes found perceived stress and recovery balance directly predicts burnout, depressive symptoms, and insomnia — it's not just about how hard you train, but whether recovery keeps up." },
-    { key:"sleep", label:"Sleep", icon:"🌙", widget:"rating", ratingIcon:"🌙",
+    { key:"sleep", label:"Sleep", icon:pillarIconSvg("sleep"), widget:"rating", ratingIcon:pillarIconSvg("sleep", 26),
       question:"How was your sleep last night?",
       labels:["Poor","Rough","Okay","Good","Great"],
       blurb:"Sleep quality is one of the most consistent predictors of burnout in youth athletes — poor sleep compounds fatigue and mood disturbance over just a few nights." },
-    { key:"motivation", label:"Motivation", icon:"🔥", widget:"rating", ratingIcon:"🔥",
+    { key:"motivation", label:"Motivation", icon:pillarIconSvg("motivation"), widget:"rating", ratingIcon:pillarIconSvg("motivation", 26),
       question:"How motivated and fulfilled do you feel in your sport right now?",
       labels:["Burnt out","Low","Okay","Motivated","Fired up"],
       blurb:"Losing your sense of accomplishment or enjoyment — \"sport devaluation\" — is a distinct, measurable dimension of burnout, separate from simply being tired." }
@@ -395,13 +448,13 @@
   }
   var SESSION_TYPES = ["Practice","Game","Scrimmage","Conditioning","Weight room","Other"];
   var PRACTICE_STEPS = [
-    { key:"rpe", icon:"💪", label:"Session RPE", question:"How hard did that session feel — as a whole, physically and mentally?",
+    { key:"rpe", icon:practiceIconSvg("rpe"), label:"Session RPE", question:"How hard did that session feel — as a whole, physically and mentally?",
       min:0, max:10, captionFn:function(v){ return v+" — "+RPE_LABELS[v]; }, endLabels:["Rest","Maximal"],
       blurb:"Session-RPE (Foster's method): a 0-10 Borg CR-10 rating of the whole session. Multiplied by duration, it's one of the most widely used training-load measures in sports science." },
-    { key:"recovery", icon:"🔋", label:"Recovery", question:"How recovered do you feel right now, compared to your normal baseline?",
+    { key:"recovery", icon:practiceIconSvg("recovery"), label:"Recovery", question:"How recovered do you feel right now, compared to your normal baseline?",
       min:0, max:10, captionFn:function(v){ return v+" — "+prsLabel(v); }, endLabels:["Extremely tired","Highly energetic"],
       blurb:"Perceived Recovery Status (Laurent et al., 2011) — self-rated recovery like this predicts performance capacity better than people assume." },
-    { key:"soreness", icon:"🦵", label:"Soreness", question:"How sore are your muscles right now?",
+    { key:"soreness", icon:practiceIconSvg("soreness"), label:"Soreness", question:"How sore are your muscles right now?",
       min:0, max:10, captionFn:function(v){ return v+" — "+sorenessLabel(v); }, endLabels:["No soreness","Severe, limits movement"],
       blurb:"A plain 0-10 muscle-soreness (DOMS) rating — standard in training-load research, and a simple early flag for accumulating fatigue." }
   ];
@@ -870,6 +923,7 @@
       '<div class="ai-card" id="aiCard">' +
         (hasWarn ? '<span class="ai-dot"></span>' : '') +
         '<div class="ai-body"><div class="ai-title">AI Insights</div><div class="ai-sub">'+aiPreview+'</div></div>' +
+        '<span class="ai-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>' +
       '</div>' : '') +
       (lastLog ?
       '<div class="ai-card" id="loadCard">' +
@@ -1161,9 +1215,9 @@
       body += '<div class="q-text-rich">'+p.question+'</div>';
 
       if(p.widget === "emoji"){
-        var btns = p.emojis.map(function(em, idx){
+        var btns = p.labels.map(function(lbl, idx){
           var v = idx+1;
-          return '<button class="emoji-btn '+(val===v?"selected":"")+'" data-val="'+v+'"><span>'+em+'</span><span class="elbl">'+p.labels[idx]+'</span></button>';
+          return '<button class="emoji-btn '+(val===v?"selected":"")+'" data-val="'+v+'"><span class="elvl">'+levelBarsSvg(v, 24)+'</span><span class="elbl">'+lbl+'</span></button>';
         }).join("");
         body += '<div class="emoji-row">'+btns+'</div>';
       } else if(p.widget === "slider"){
@@ -1190,7 +1244,7 @@
           scheduleFollowupRequest(p.key, val);
         }
         if(fu.loading){
-          body += '<div class="chip-section"><div class="chip-prompt">Thinking about what fits…</div></div>';
+          body += '<div class="chip-section"><div class="chip-prompt thinking">Thinking about what fits…</div></div>';
         } else if(!fu.skip){
           var chipBtns = fu.chips.map(function(c){
             var selected = state.checkin.tags[p.key].indexOf(c) !== -1;
@@ -1275,7 +1329,7 @@
       var bits = [];
       if(tags[p.key] && tags[p.key].length) bits.push(tags[p.key].join(", "));
       if(notes[p.key]) bits.push(notes[p.key]);
-      if(bits.length) parts.push(p.icon+" "+bits.join(" — "));
+      if(bits.length) parts.push(p.label+": "+bits.join(" — "));
     });
     if(note) parts.push(note);
     var combinedNote = parts.join(" · ");
