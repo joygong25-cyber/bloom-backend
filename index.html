@@ -300,7 +300,9 @@
     var shapes = {
       rpe: '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-4M9 4.5h6"/></g>',
       recovery: '<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="17" height="8" rx="2" fill="none"/><path d="M22 10.5v3"/><rect x="4.5" y="10.5" width="8" height="3" fill="currentColor" stroke="none"/></g>',
-      soreness: '<path d="M2.5 13h4l2-7 4 14 2-7h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'
+      soreness: '<path d="M2.5 13h4l2-7 4 14 2-7h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+      duration: '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/></g>',
+      goal: '<g fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></g>'
     };
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-2px;">'+(shapes[key]||"")+'</svg>';
   }
@@ -460,6 +462,16 @@
   ];
   var PRACTICE_TOTAL_STEPS = 5; // duration+type, rpe, recovery, soreness, note
 
+  // ---- Pre-session goal setting + post-session reflection. Grounded in Locke & Latham's
+  // Goal-Setting Theory (specific goals outperform vague "do your best" ones) and sport-
+  // psychology research on process vs. outcome goals (Kingston & Hardy, 1997) — process
+  // goals (focused on effort, technique, or strategy an athlete actually controls) improve
+  // performance and lower competitive anxiety more reliably than outcome goals (win/score),
+  // which depend on things outside the athlete's control. The reflection step afterward is
+  // the feedback loop that makes goal-setting actually work instead of just being wishful.
+  var GOAL_TYPES = ["Technique","Effort","Mental focus","Team/communication","Outcome"];
+  var GOAL_REFLECT_LABELS = ["Didn't happen","Partially","Somewhat","Mostly","Nailed it"];
+
   var samplePracticeDays = [
     {d:0,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     note:"Focused on conditioning."},
     {d:2,  duration:75,  rpe:5, recovery:7, soreness:3, type:"Practice",     note:""},
@@ -486,7 +498,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         points: state.points, streak: state.streak, longestStreak: state.longestStreak,
         history: state.history, practiceLogs: state.practiceLogs,
-        pet: state.pet, settings: state.settings
+        pet: state.pet, settings: state.settings, pendingGoal: state.pendingGoal
       }));
     } catch(e) { /* storage unavailable/full — app still works for this session */ }
   }
@@ -511,7 +523,9 @@
     settings: { notifications: true, smartReminders: true, aiAlerts: true, dailyTime: "20:00", customReminders: DEMO_MODE ? [{label:"After soccer practice", time:"17:30"}] : [] },
     chartView: "chart",
     checkin: { step: 1, answers: {energy:null, stress:null, sleep:null, motivation:null}, note: "" },
-    practiceCheckin: null
+    practiceCheckin: null,
+    pendingGoal: DEMO_MODE ? { text:"Keep first-touch under control instead of rushing it", type:"Technique", setAt: demoBaseTs+13*DAY_MS } : null,
+    goalSetting: null
   };
 
   // Demo mode is a stable, always-fresh preview — it never reads or writes real saved
@@ -526,6 +540,7 @@
       if(typeof saved.longestStreak === "number") state.longestStreak = saved.longestStreak;
       if(saved.pet && typeof saved.pet === "object") state.pet = Object.assign({}, state.pet, saved.pet);
       if(saved.settings && typeof saved.settings === "object") state.settings = Object.assign({}, state.settings, saved.settings);
+      if(saved.pendingGoal && typeof saved.pendingGoal === "object") state.pendingGoal = saved.pendingGoal;
     }
   }
   // Always recompute from real history rather than trusting a persisted boolean — otherwise
@@ -898,7 +913,15 @@
           '<span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;">'+fmtDate(e.ts)+(e.sessionType?' · '+e.sessionType:'')+'</span>' +
           '<span style="font-size:12px;font-weight:800;color:var(--text-primary);">'+e.load+' AU</span>' +
         '</div>' +
-        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">⏱️ '+e.duration+' min · 💪 RPE '+e.rpe+' · 🔋 Recovery '+e.recovery+' · 🦵 Soreness '+e.soreness+'</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">' +
+          '<span style="display:inline-flex;align-items:center;gap:3px;">'+practiceIconSvg("duration")+' '+e.duration+' min</span>' +
+          '<span>·</span><span style="display:inline-flex;align-items:center;gap:3px;">'+practiceIconSvg("rpe")+' RPE '+e.rpe+'</span>' +
+          '<span>·</span><span style="display:inline-flex;align-items:center;gap:3px;">'+practiceIconSvg("recovery")+' Recovery '+e.recovery+'</span>' +
+          '<span>·</span><span style="display:inline-flex;align-items:center;gap:3px;">'+practiceIconSvg("soreness")+' Soreness '+e.soreness+'</span>' +
+        '</div>' +
+        (e.goal ? '<div style="font-size:11.5px;color:var(--text-secondary);background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">' +
+          '<strong style="color:var(--text-primary);">Goal:</strong> "'+e.goal.text+'" — '+GOAL_REFLECT_LABELS[e.goal.rating-1]+
+          (e.goal.note ? ' — '+e.goal.note : '') + '</div>' : '') +
         (e.note ? '<p>'+e.note+'</p>' : '') +
       '</div>';
     }).join("");
@@ -967,6 +990,11 @@
         (loadZone && loadZone.name==="Elevated" ? '<span class="ai-dot"></span>' : '') +
         '<div class="ai-body"><div class="ai-title">Training Load</div><div class="ai-sub">Last session '+lastLog.load+' AU'+(loadZone?' · '+loadZone.name+' load':'')+'</div></div>' +
       '</div>' : '') +
+      (state.pendingGoal ?
+      '<div class="ai-card" id="goalCard">' +
+        '<div class="ai-body"><div class="ai-title">Goal for next session</div><div class="ai-sub">"'+state.pendingGoal.text+'"</div></div>' +
+        '<span class="ai-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>' +
+      '</div>' : '') +
       '<div class="pet-card" id="petCard">' +
         '<div class="pet-avatar">' + petFaceSvg(52) + petAccessoryIcon(20) + '</div>' +
         '<div class="pet-info">' +
@@ -976,13 +1004,16 @@
         '</div>' +
       '</div>' +
       '<button class="checkin-cta ' + (state.checkedInToday?"done":"") + '" id="checkinBtn">' + (state.checkedInToday ? "✓ Checked in today" : "Log today's check-in") + '</button>' +
+      (state.pendingGoal ? '' : '<button class="btn-secondary" style="width:100%;margin-bottom:10px;" id="setGoalBtn">Set a goal for next session</button>') +
       '<button class="btn-secondary" style="width:100%;margin-bottom:14px;" id="practiceCheckinBtn">Log a practice or game</button>';
 
     el.querySelectorAll(".pillar-card").forEach(function(c){ c.onclick = function(){ openPillar(c.getAttribute("data-pillar")); }; });
     document.getElementById("petCard").onclick = function(){ state.tab="pet"; render(); };
     var aiCard = document.getElementById("aiCard"); if(aiCard) aiCard.onclick = openInsights;
     var loadCard = document.getElementById("loadCard"); if(loadCard) loadCard.onclick = openPracticeLog;
+    var goalCard = document.getElementById("goalCard"); if(goalCard) goalCard.onclick = openGoalSetting;
     document.getElementById("checkinBtn").onclick = function(){ if(!state.checkedInToday) openCheckin(); };
+    var setGoalBtn = document.getElementById("setGoalBtn"); if(setGoalBtn) setGoalBtn.onclick = openGoalSetting;
     document.getElementById("practiceCheckinBtn").onclick = openPracticeCheckin;
   }
 
@@ -1391,19 +1422,74 @@
     showToast("+"+earned+" points · check-in logged."+milestoneMsg, 3600);
   }
 
+  // ---------- Pre-session goal setting — see GOAL_TYPES/GOAL_REFLECT_LABELS above for the
+  // research this is grounded in. Sets state.pendingGoal, which the very next post-practice
+  // check-in will ask about (see the "goal" step below), then clears it.
+  function openGoalSetting(){
+    var existing = state.pendingGoal;
+    state.goalSetting = { type: existing ? existing.type : null, text: existing ? existing.text : "" };
+    renderGoalSettingScreen();
+  }
+  function closeGoalSetting(){ var b=document.getElementById("goalSettingScreen"); if(b) b.remove(); }
+  function renderGoalSettingScreen(){
+    var existing=document.getElementById("goalSettingScreen"); if(existing) existing.remove();
+    var screen=document.createElement("div"); screen.className="checkin-screen"; screen.id="goalSettingScreen";
+    var gs = state.goalSetting;
+    var typeChips = GOAL_TYPES.map(function(t){
+      var sel = gs.type === t;
+      return '<button class="chip '+(sel?"selected":"")+'" data-gtype="'+t+'">'+t+'</button>';
+    }).join("");
+    var header = '<div class="checkin-header"><div class="step-dots"></div><button class="checkin-close" id="closeGoalSetting">✕</button></div>';
+    var body = '<div class="q-body-rich">' +
+      '<div class="q-topline"><div class="plabel">'+practiceIconSvg("goal")+' Goal for next session</div></div>' +
+      '<div class="q-text-rich">What\'s one specific thing you want to focus on or achieve?</div>' +
+      '<textarea id="goalTextInput" placeholder="e.g. Keep my elbow up on every serve" style="min-height:80px;">'+gs.text+'</textarea>' +
+      '<div class="chip-section"><div class="chip-prompt">What kind of goal is this? (optional)</div><div class="chip-row">'+typeChips+'</div></div>' +
+      '<div class="card" style="margin-top:22px;text-align:left;"><p style="font-size:11.5px;">Specific goals outperform vague ones (Locke &amp; Latham\'s Goal-Setting Theory), and process goals — effort, technique, or strategy, things actually in your control — tend to improve performance and lower pre-game anxiety more reliably than outcome goals like the final score.</p></div>' +
+    '</div>';
+    var footer = '<div class="modal-actions">' +
+      (state.pendingGoal ? '<button class="btn-secondary" id="clearGoal">Clear goal</button>' : '') +
+      '<button class="btn-primary" id="saveGoal" style="flex:1;" '+(gs.text.trim()?"":"disabled")+'>Save goal</button>' +
+    '</div>';
+    screen.innerHTML = header + '<div class="checkin-content">'+body+'</div>' + '<div class="checkin-footer">'+footer+'</div>';
+    document.getElementById("phone").appendChild(screen);
+    document.getElementById("closeGoalSetting").onclick = closeGoalSetting;
+    document.getElementById("goalTextInput").oninput = function(e){ gs.text=e.target.value; document.getElementById("saveGoal").disabled = !gs.text.trim(); };
+    screen.querySelectorAll("[data-gtype]").forEach(function(b){
+      b.onclick = function(){ var t=b.getAttribute("data-gtype"); gs.type = (gs.type===t?null:t); renderGoalSettingScreen(); };
+    });
+    document.getElementById("saveGoal").onclick = submitGoal;
+    var clearBtn = document.getElementById("clearGoal");
+    if(clearBtn) clearBtn.onclick = function(){ state.pendingGoal=null; closeGoalSetting(); render(); showToast("Goal cleared."); };
+  }
+  function submitGoal(){
+    var gs = state.goalSetting;
+    if(!gs.text.trim()) return;
+    state.pendingGoal = { text: gs.text.trim(), type: gs.type, setAt: Date.now() };
+    closeGoalSetting();
+    render();
+    showToast("Goal set — you'll reflect on it after your next session.", 3600);
+  }
+
   // ---------- Post-practice check-in: a separate, longer flow from the daily 4-pillar
   // check-in. Uses labeled numeric scales grounded in real training-load monitoring
   // (Session-RPE, Perceived Recovery Status, DOMS soreness) instead of emoji taps, plus a
   // duration input so it can compute an actual training-load number and track it over time.
+  // If a goal was set beforehand (state.pendingGoal), an extra "goal" step is inserted right
+  // after session length so the reflection happens while the session's still fresh.
   function openPracticeCheckin(){
-    state.practiceCheckin = { step:1, duration:60, sessionType:null, rpe:null, recovery:null, soreness:null, note:"" };
+    var steps = ["length"];
+    if(state.pendingGoal) steps.push("goal");
+    steps = steps.concat(["rpe","recovery","soreness","note"]);
+    state.practiceCheckin = { step:1, steps:steps, duration:60, sessionType:null, rpe:null, recovery:null, soreness:null, note:"", goalRating:null, goalNote:"" };
     renderPracticeCheckinScreen();
   }
   function closePracticeCheckin(){ var b=document.getElementById("practiceCheckinScreen"); if(b) b.remove(); }
 
   function practiceStepDotsHtml(){
     var dots = "";
-    for(var i=1;i<=PRACTICE_TOTAL_STEPS;i++){
+    var total = state.practiceCheckin.steps.length;
+    for(var i=1;i<=total;i++){
       var cls = i < state.practiceCheckin.step ? "done" : (i===state.practiceCheckin.step ? "current" : "");
       dots += '<span class="sdot '+cls+'"></span>';
     }
@@ -1421,22 +1507,26 @@
     return '<div class="live-ring-wrap">' + ringSvg(score, 92, 10, false, color) + '<div class="live-ring-text" style="color:'+textColor+'">'+textVal+'</div></div>';
   }
 
+  function practiceStepByKey(key){ return PRACTICE_STEPS.filter(function(s){ return s.key===key; })[0]; }
+
   function renderPracticeCheckinScreen(){
     var existing=document.getElementById("practiceCheckinScreen"); if(existing) existing.remove();
     var screen=document.createElement("div"); screen.className="checkin-screen"; screen.id="practiceCheckinScreen";
     var pc = state.practiceCheckin;
     var step = pc.step;
+    var stepType = pc.steps[step-1];
+    var isLastStep = step === pc.steps.length;
 
     var header = '<div class="checkin-header">' + practiceStepDotsHtml() + '<button class="checkin-close" id="closePracticeCheckin">✕</button></div>';
     var body = "", footer = "";
 
-    if(step === 1){
+    if(stepType === "length"){
       var typeChips = SESSION_TYPES.map(function(t){
         var sel = pc.sessionType === t;
         return '<button class="chip '+(sel?"selected":"")+'" data-type="'+t+'">'+t+'</button>';
       }).join("");
       body += '<div class="q-body-rich">' +
-        '<div class="q-topline"><div class="plabel">⏱️ Session length</div></div>' +
+        '<div class="q-topline"><div class="plabel">'+practiceIconSvg("duration")+' Session length</div></div>' +
         '<div class="q-text-rich">How long was today\'s session?</div>' +
         '<div class="slider-wrap">' +
           '<div class="slider-caption" id="durCaption">'+pc.duration+' min</div>' +
@@ -1446,8 +1536,25 @@
         '<div class="chip-section"><div class="chip-prompt">Session type (optional)</div><div class="chip-row">'+typeChips+'</div></div>' +
       '</div>';
       footer = '<div class="modal-actions"><button class="btn-primary" id="nextPractice" style="flex:1;">Next</button></div>';
-    } else if(step >= 2 && step <= 4){
-      var cfg = PRACTICE_STEPS[step-2];
+    } else if(stepType === "goal"){
+      var goal = state.pendingGoal;
+      var ratingBtns = GOAL_REFLECT_LABELS.map(function(lbl, idx){
+        var v = idx+1;
+        return '<button class="emoji-btn '+(pc.goalRating===v?"selected":"")+'" data-val="'+v+'"><span class="elvl">'+levelBarsSvg(v, 24)+'</span><span class="elbl">'+lbl+'</span></button>';
+      }).join("");
+      body += '<div class="q-body-rich">' +
+        '<div class="q-topline"><div class="plabel">'+practiceIconSvg("goal")+' Your goal</div></div>' +
+        '<div class="q-text-rich">"'+goal.text+'"</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin:-14px 0 20px;">How did it go?</div>' +
+        '<div class="emoji-row">'+ratingBtns+'</div>' +
+        '<div class="note-toggle-wrap" style="width:100%;margin-top:18px;">'+(pc.goalNote || pc._goalNoteOpen ?
+          '<textarea id="goalNoteInput" placeholder="Anything to note — optional">'+pc.goalNote+'</textarea>' :
+          '<button class="note-toggle" id="goalNoteToggle">+ Add a note</button>') + '</div>' +
+        '<div class="card" style="margin-top:22px;text-align:left;"><p style="font-size:11.5px;">Reflecting on a specific goal right after the session — while it\'s still fresh — is the feedback loop that makes goal-setting actually improve performance over time, rather than just being a nice intention.</p></div>' +
+      '</div>';
+      footer = '<div class="modal-actions"><button class="btn-secondary" id="backPractice">Back</button><button class="btn-primary" id="nextPractice" '+(pc.goalRating?"":"disabled")+'>Next</button></div>';
+    } else if(stepType === "rpe" || stepType === "recovery" || stepType === "soreness"){
+      var cfg = practiceStepByKey(stepType);
       var val = pc[cfg.key];
       var sliderStart = (val===null||val===undefined) ? Math.round((cfg.min+cfg.max)/2) : val;
       body += '<div class="q-body-rich">' +
@@ -1476,15 +1583,25 @@
     document.getElementById("phone").appendChild(screen);
     document.getElementById("closePracticeCheckin").onclick = closePracticeCheckin;
 
-    if(step === 1){
+    if(stepType === "length"){
       var durRange = document.getElementById("durRange"), durCaption = document.getElementById("durCaption");
       durRange.oninput = function(){ var v=parseInt(durRange.value,10); pc.duration=v; durCaption.textContent=v+" min"; };
       screen.querySelectorAll("[data-type]").forEach(function(b){
         b.onclick = function(){ var t=b.getAttribute("data-type"); pc.sessionType = (pc.sessionType===t?null:t); renderPracticeCheckinScreen(); };
       });
       document.getElementById("nextPractice").onclick = function(){ pc.step++; renderPracticeCheckinScreen(); };
-    } else if(step >= 2 && step <= 4){
-      var cfg2 = PRACTICE_STEPS[step-2];
+    } else if(stepType === "goal"){
+      screen.querySelectorAll(".emoji-btn").forEach(function(b){
+        b.onclick=function(){ pc.goalRating=parseInt(b.getAttribute("data-val"),10); renderPracticeCheckinScreen(); };
+      });
+      var goalNoteToggle = document.getElementById("goalNoteToggle");
+      if(goalNoteToggle) goalNoteToggle.onclick = function(){ pc._goalNoteOpen = true; renderPracticeCheckinScreen(); };
+      var goalNoteInput = document.getElementById("goalNoteInput");
+      if(goalNoteInput) goalNoteInput.oninput = function(e){ pc.goalNote = e.target.value; };
+      document.getElementById("backPractice").onclick = function(){ pc.step--; renderPracticeCheckinScreen(); };
+      document.getElementById("nextPractice").onclick = function(){ if(!pc.goalRating) return; pc.step++; renderPracticeCheckinScreen(); };
+    } else if(stepType === "rpe" || stepType === "recovery" || stepType === "soreness"){
+      var cfg2 = practiceStepByKey(stepType);
       var range = document.getElementById("practiceRange"), cap = document.getElementById("practiceCaption");
       range.oninput = function(){
         var v = parseInt(range.value,10);
@@ -1505,11 +1622,16 @@
   function submitPracticeCheckin(){
     var pc = state.practiceCheckin;
     var load = pc.duration * pc.rpe;
-    state.practiceLogs.push({
+    var entry = {
       ts: Date.now(),
       duration: pc.duration, rpe: pc.rpe, recovery: pc.recovery, soreness: pc.soreness,
       load: load, sessionType: pc.sessionType, note: pc.note
-    });
+    };
+    if(pc.steps.indexOf("goal") !== -1 && state.pendingGoal){
+      entry.goal = { text: state.pendingGoal.text, type: state.pendingGoal.type, rating: pc.goalRating, note: pc.goalNote };
+      state.pendingGoal = null;
+    }
+    state.practiceLogs.push(entry);
     closePracticeCheckin();
     var zone = loadTrendZone();
     var msg = "Session logged — training load "+load+" AU.";
