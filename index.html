@@ -670,8 +670,8 @@
   // Tries the real backend (server.js, see the bloom-backend folder) first, which calls
   // the actual Claude API. If it's not running/reachable, falls back to the local
   // rule-based version so this file still works as a standalone demo on its own.
-  var AI_BACKEND_URL = "http://localhost:3001/api/insights";
-  var AI_FOLLOWUP_URL = "http://localhost:3001/api/followup";
+  var AI_BACKEND_URL = "https://bloom-backend-rv0g.onrender.com/api/insights";
+  var AI_FOLLOWUP_URL = "https://bloom-backend-rv0g.onrender.com/api/followup";
 
   // ---------- Check-in "what's contributing?" follow-up, Claude-generated per answer ----------
   // Fired the moment an athlete picks a value for a pillar. Claude decides the question AND
