@@ -56,7 +56,7 @@
   /* Pet card (consolidates streak + points + pet) */
   .pet-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; margin-bottom: 14px; display:flex; align-items:center; gap: 12px; cursor:pointer; }
   .pet-avatar { width: 52px; height: 52px; border-radius: 50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; filter: drop-shadow(0 3px 4px rgba(60,50,20,0.18)); }
-  .pet-avatar .accessory { position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size: 20px; filter: drop-shadow(0 2px 2px rgba(60,50,20,0.25)); }
+  .pet-avatar .accessory { position:absolute; top:-15px; left:50%; transform:translateX(-50%); display:block; filter: drop-shadow(0 2px 2px rgba(60,50,20,0.25)); }
   .pet-info { flex: 1; min-width: 0; }
   .pet-info .toprow { display:flex; align-items:center; justify-content:space-between; }
   .pet-info .pname2 { font-size: 13.5px; font-weight: 800; color: var(--text-primary); }
@@ -143,20 +143,28 @@
   /* Buddy / pet page */
   .pet-stage { display: flex; align-items: center; justify-content: center; padding: 10px 0 4px; }
   .pet-body { width: 108px; height: 108px; border-radius: 50%; position: relative; display:flex; align-items:center; justify-content:center; filter: drop-shadow(0 6px 8px rgba(60,50,20,0.2)); }
-  .pet-body .accessory { position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size: 30px; filter: drop-shadow(0 2px 3px rgba(60,50,20,0.25)); }
+  .pet-body .accessory { position:absolute; top:-22px; left:50%; transform:translateX(-50%); display:block; filter: drop-shadow(0 2px 3px rgba(60,50,20,0.25)); }
   .swatch-row { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
   .swatch.selected { border-color: var(--accent); }
   .acc-row { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .acc-btn { padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); font-size: 17px; cursor: pointer; position: relative; }
+  .acc-btn { padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); font-size: 17px; cursor: pointer; position: relative; display:flex; align-items:center; justify-content:center; min-width:42px; min-height:38px; }
   .acc-btn.selected { border-color: var(--accent); border-width: 2px; }
-  .acc-btn.locked { opacity: 0.3; cursor: not-allowed; }
-  .acc-btn .lock-badge { position:absolute; bottom:-4px; right:-4px; font-size: 9px; }
+  .acc-btn.locked { opacity: 0.35; cursor: not-allowed; }
+  .acc-btn .lock-badge { position:absolute; bottom:-5px; right:-5px; font-size: 9px; display:flex; align-items:center; gap:1px; background:var(--surface-1); border:1px solid var(--border); border-radius:7px; padding:1px 4px; color:var(--muted); font-weight:700; }
   .badge-grid { display:grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 8px; }
   .badge-item { display:flex; flex-direction:column; align-items:center; gap:4px; padding: 10px 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
-  .badge-item .bic { font-size: 22px; }
+  .badge-item .bic { display:flex; }
   .badge-item.locked { opacity: 0.3; }
   .badge-item .blbl { font-size: 8.5px; color: var(--muted); font-weight:700; text-transform:uppercase; text-align:center; }
+
+  /* Buddy growth timeline */
+  .growth-row { display:flex; justify-content:space-between; gap: 6px; margin-top: 10px; }
+  .growth-stage { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; padding: 8px 2px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+  .growth-stage.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
+  .growth-stage.locked .growth-avatar { opacity: 0.35; }
+  .growth-stage .glbl { font-size: 8px; color: var(--muted); font-weight:700; text-transform:uppercase; text-align:center; letter-spacing:0.02em; }
+  .growth-stage.current .glbl { color: var(--accent); }
 
   /* Full-screen check-in */
   .checkin-screen { position: absolute; inset: 0; background: var(--page); z-index: 25; display:flex; flex-direction:column; }
@@ -401,20 +409,78 @@
     };
   }
 
+  // Small colored SVG "stickers" for accessories/badges — unlike the muted informational
+  // icons used elsewhere, these are deliberately playful and color-coded, since they're
+  // collectible reward items, not functional UI.
+  function accessoryIconSvg(id, size){
+    size = size || 22;
+    var shapes = {
+      bow: '<path d="M12 12 L3 6 L3 18 Z" fill="#ff8fa3"/><path d="M12 12 L21 6 L21 18 Z" fill="#ff8fa3"/><circle cx="12" cy="12" r="3" fill="#e85d75"/>',
+      crown: '<path d="M3 18h18l-1.6-8-4.4 4-3-7.5-3 7.5-4.4-4-1.6 8z" fill="#ffd166" stroke="#e0a412" stroke-width="0.6" stroke-linejoin="round"/>',
+      glasses: '<g fill="none" stroke="#2c2a24" stroke-width="2"><circle cx="7" cy="12" r="4.6"/><circle cx="17" cy="12" r="4.6"/><path d="M11.4 12h1.2M2.2 10.6L4 12M21.8 10.6L20 12"/></g>',
+      cape: '<path d="M12 4 L20 20 L4 20 Z" fill="#a78bfa"/><circle cx="12" cy="5" r="2.2" fill="#7c5cff"/>'
+    };
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;">'+(shapes[id]||"")+'</svg>';
+  }
+  function lockIconSvg(size){
+    size = size || 11;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-1px;"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  }
+  function badgeIconSvg(color, size){
+    size = size || 26;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;">' +
+      '<path d="M8 3 L10.5 8.5 M16 3 L13.5 8.5" stroke="'+color+'" stroke-width="2.2" stroke-linecap="round"/>' +
+      '<circle cx="12" cy="14" r="8" fill="'+color+'"/>' +
+      '<path d="M12 9.5l1.5 3 3.3 0.4-2.5 2.3 0.7 3.3-3-1.7-3 1.7 0.7-3.3-2.5-2.3 3.3-0.4z" fill="#fff" opacity="0.92"/>' +
+    '</svg>';
+  }
+
   var PET_COLORS = ["#ffb4a2","#ffd166","#8ecae6","#95d5b2","#c9b6e4","#f4978e"];
   var ACCESSORIES = [
     {id:"none", ic:"—", unlockStreak:0},
-    {id:"bow", ic:"🎀", unlockStreak:5},
-    {id:"crown", ic:"👑", unlockStreak:10},
-    {id:"glasses", ic:"🕶️", unlockStreak:20},
-    {id:"cape", ic:"🦸", unlockStreak:35}
+    {id:"bow", ic:accessoryIconSvg("bow"), unlockStreak:5},
+    {id:"crown", ic:accessoryIconSvg("crown"), unlockStreak:10},
+    {id:"glasses", ic:accessoryIconSvg("glasses"), unlockStreak:20},
+    {id:"cape", ic:accessoryIconSvg("cape"), unlockStreak:35}
   ];
+  var BADGE_COLORS = { bronze:"#cd7f32", silver:"#9aa0a6", gold:"#ffd166", elite:"#7dd3d8" };
   var BADGES = [
-    {id:"starter", ic:"🥉", threshold:5, label:"5 check-ins"},
-    {id:"committed", ic:"🥈", threshold:15, label:"15 check-ins"},
-    {id:"dedicated", ic:"🥇", threshold:30, label:"30 check-ins"},
-    {id:"elite", ic:"🏆", threshold:50, label:"50 check-ins"}
+    {id:"starter", ic:badgeIconSvg(BADGE_COLORS.bronze), threshold:5, label:"5 check-ins"},
+    {id:"committed", ic:badgeIconSvg(BADGE_COLORS.silver), threshold:15, label:"15 check-ins"},
+    {id:"dedicated", ic:badgeIconSvg(BADGE_COLORS.gold), threshold:30, label:"30 check-ins"},
+    {id:"elite", ic:badgeIconSvg(BADGE_COLORS.elite), threshold:50, label:"50 check-ins"}
   ];
+
+  // ---- Buddy evolution — grounded in real behavior-change research rather than an
+  // arbitrary points ladder:
+  // - Self-Determination Theory (Deci & Ryan): visible growth signals competence, and caring
+  //   for a dependent companion taps relatedness — a documented "virtual pet"/Tamagotchi
+  //   effect where nurturing something else increases adherence to the underlying behavior
+  //   more reliably than tracking the behavior for yourself alone.
+  // - Deliberately NOT a variable/random reward schedule. Slot-machine-style unpredictable
+  //   rewards (variable-ratio reinforcement) are the mechanism behind compulsive engagement
+  //   loops in social apps and games — the wrong model for a burnout-prevention tool aimed at
+  //   teens. Every stage here is fixed and disclosed up front (see the Growth card), so the
+  //   motivation stays autonomous or rooted in genuine reward rather than being manipulated.
+  // - Thresholds use real numbers from habit-formation research (Lally et al., 2010, found
+  //   habits take 66 days on average to become automatic — not the popular but unsupported
+  //   "21 days" myth) instead of round numbers picked for no reason.
+  // - Stages key off longestStreak (highest ever reached), not current streak, so missing a
+  //   day never un-evolves Buddy — a wellbeing app should never punish a lapse.
+  var EVOLUTION_STAGES = [
+    { id:"egg", label:"Egg", req:"Log your first check-in to hatch" },
+    { id:"hatchling", label:"Hatchling", req:"Your first check-in" },
+    { id:"growing", label:"Growing", req:"14-day longest streak" },
+    { id:"established", label:"Established", req:"30-day longest streak" },
+    { id:"thriving", label:"Thriving", req:"66-day longest streak — the point research shows a habit typically becomes automatic (Lally et al., 2010)" }
+  ];
+  function petStage(){
+    if(state.history.length === 0) return 0;
+    if(state.longestStreak >= 66) return 4;
+    if(state.longestStreak >= 30) return 3;
+    if(state.longestStreak >= 14) return 2;
+    return 1;
+  }
 
   // Seed 14 days of correlated sample data so trends look real immediately.
   var sampleEnergy =     [3,2,3,4,3,4,5,4,3,4,4,5,4,4];
@@ -515,7 +581,7 @@
     tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false,
     points: DEMO_MODE ? 240 : 0,
     streak: DEMO_MODE ? 6 : 0,
-    longestStreak: DEMO_MODE ? 9 : 0,
+    longestStreak: DEMO_MODE ? 34 : 0,
     checkedInToday: false,
     history: DEMO_MODE ? history : [],
     practiceLogs: DEMO_MODE ? practiceLogs : [],
@@ -699,15 +765,44 @@
     var R=f>>16, G=(f>>8)&0x00FF, B=f&0x0000FF;
     return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
   }
-  function petFaceSvg(size){
+  // stageOverride lets the Growth timeline preview render every stage regardless of the
+  // user's actual progress — omit it to draw the pet's real current stage.
+  function petFaceSvg(size, stageOverride){
+    var stage = (stageOverride===undefined || stageOverride===null) ? petStage() : stageOverride;
     petSvgCounter++;
     var clipId = "petClip"+petSvgCounter;
     var color = state.pet.color;
     var earColor = shadeColor(color, -0.14);
     var innerEar = shadeColor(color, 0.4);
     var shadowColor = shadeColor(color, -0.16);
+
+    if(stage === 0){
+      // Egg — no face yet, nothing to hatch from until the first check-in.
+      return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 100" style="display:block;overflow:visible;">' +
+        '<ellipse cx="50" cy="58" rx="33" ry="39" fill="'+color+'"/>' +
+        '<ellipse cx="50" cy="92" rx="30" ry="9" fill="'+shadowColor+'" opacity="0.35"/>' +
+        '<path d="M36 36 L43 48 L34 53 L44 64" stroke="'+shadowColor+'" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>' +
+        '<circle cx="70" cy="28" r="2.6" fill="#fff" opacity="0.75"/>' +
+        '<circle cx="78" cy="40" r="1.6" fill="#fff" opacity="0.55"/>' +
+      '</svg>';
+    }
+
+    // Stages 1-4 share the same critter template, growing a bit more expressive/confident
+    // (bigger eyes, deeper smile, sparkle accents, a soft glow at the final stage) at each one.
+    var eyeR = stage>=3 ? 6.6 : 6;
+    var smileD = stage===1 ? 'M 42 66 Q 50 71 58 66' : (stage===2 ? 'M 41 66 Q 50 74 59 66' : 'M 40 65 Q 50 77 60 65');
+    var glow = stage>=4 ? '<circle cx="50" cy="56" r="47" fill="'+color+'" opacity="0.22"/>' : '';
+    var sparkleCount = stage>=4 ? 3 : (stage===3 ? 2 : (stage===2 ? 1 : 0));
+    var sparklePositions = [[13,26],[87,64],[10,72]];
+    var sparkles = "";
+    for(var i=0;i<sparkleCount;i++){
+      var p = sparklePositions[i];
+      sparkles += '<path d="M'+p[0]+' '+(p[1]-4)+' L'+(p[0]+1.6)+' '+p[1]+' L'+(p[0]+5)+' '+(p[1]+1)+' L'+(p[0]+1.6)+' '+(p[1]+2)+' L'+p[0]+' '+(p[1]+6)+' L'+(p[0]-1.6)+' '+(p[1]+2)+' L'+(p[0]-5)+' '+(p[1]+1)+' L'+(p[0]-1.6)+' '+p[1]+' Z" fill="#ffd166" opacity="0.9"/>';
+    }
+
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 100" style="display:block;overflow:visible;">' +
       '<defs><clipPath id="'+clipId+'"><circle cx="50" cy="55" r="40"/></clipPath></defs>' +
+      glow +
       '<circle cx="23" cy="21" r="15" fill="'+earColor+'"/>' +
       '<circle cx="77" cy="21" r="15" fill="'+earColor+'"/>' +
       '<circle cx="23" cy="22" r="7.5" fill="'+innerEar+'"/>' +
@@ -716,11 +811,12 @@
       '<ellipse cx="50" cy="100" rx="46" ry="30" fill="'+shadowColor+'" opacity="0.4" clip-path="url(#'+clipId+')"/>' +
       '<ellipse cx="29" cy="63" rx="8" ry="5" fill="#ff9aa6" opacity="0.55"/>' +
       '<ellipse cx="71" cy="63" rx="8" ry="5" fill="#ff9aa6" opacity="0.55"/>' +
-      '<circle cx="38" cy="51" r="6" fill="#2c2a24"/>' +
-      '<circle cx="62" cy="51" r="6" fill="#2c2a24"/>' +
+      '<circle cx="38" cy="51" r="'+eyeR+'" fill="#2c2a24"/>' +
+      '<circle cx="62" cy="51" r="'+eyeR+'" fill="#2c2a24"/>' +
       '<circle cx="40" cy="48.5" r="1.8" fill="#fff"/>' +
       '<circle cx="64" cy="48.5" r="1.8" fill="#fff"/>' +
-      '<path d="M 41 66 Q 50 73 59 66" stroke="#2c2a24" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="'+smileD+'" stroke="#2c2a24" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      sparkles +
     '</svg>';
   }
   // Accessory renders as a separate overlay on top of the face (absolutely positioned via
@@ -728,9 +824,11 @@
   function petAccessoryIcon(size){
     var acc = ACCESSORIES.filter(function(a){return a.id===state.pet.accessory;})[0];
     if(!acc || acc.id==="none") return "";
-    return '<span class="accessory" style="font-size:'+size+'px">'+acc.ic+'</span>';
+    return '<span class="accessory" style="width:'+size+'px;height:'+size+'px;">'+accessoryIconSvg(acc.id, size)+'</span>';
   }
   function petStatusText(){
+    var stage = petStage();
+    if(stage === 0) return "Log your first check-in to hatch "+state.pet.name+".";
     if(state.streak>=10) return state.pet.name+" is thriving on your streak.";
     if(state.streak>=3) return state.pet.name+" is happy and cared for.";
     if(state.streak>=1) return "Check in to keep "+state.pet.name+" happy.";
@@ -1160,14 +1258,22 @@
     var el = document.getElementById("view-pet");
     var lvl = levelForPoints(state.points), xp = xpPctForPoints(state.points);
     var totalCheckins = state.history.length;
+    var stage = petStage();
     var colorSwatches = PET_COLORS.map(function(c){ return '<div class="swatch '+(c===state.pet.color?"selected":"")+'" style="background:'+c+'" data-color="'+c+'"></div>'; }).join("");
     var accBtns = ACCESSORIES.map(function(a){
       var locked = state.longestStreak<a.unlockStreak && state.streak<a.unlockStreak;
-      return '<button class="acc-btn '+(a.id===state.pet.accessory?"selected":"")+' '+(locked?"locked":"")+'" data-acc="'+a.id+'" '+(locked?'disabled':'')+'>'+a.ic+(locked?'<span class="lock-badge">🔒'+a.unlockStreak+'d</span>':'')+'</button>';
+      return '<button class="acc-btn '+(a.id===state.pet.accessory?"selected":"")+' '+(locked?"locked":"")+'" data-acc="'+a.id+'" '+(locked?'disabled':'')+'>'+a.ic+(locked?'<span class="lock-badge">'+lockIconSvg(9)+a.unlockStreak+'d</span>':'')+'</button>';
     }).join("");
     var badgeItems = BADGES.map(function(b){
       var locked = totalCheckins < b.threshold;
-      return '<div class="badge-item '+(locked?"locked":"")+'"><span class="bic">'+b.ic+'</span><span class="blbl">'+(locked?b.threshold+" check-ins":b.label)+'</span></div>';
+      return '<div class="badge-item '+(locked?"locked":"")+'"><span class="bic">'+(locked?lockIconSvg(22):b.ic)+'</span><span class="blbl">'+(locked?b.threshold+" check-ins":b.label)+'</span></div>';
+    }).join("");
+    var growthStages = EVOLUTION_STAGES.map(function(s, idx){
+      var locked = idx > stage;
+      return '<div class="growth-stage '+(idx===stage?"current":"")+' '+(locked?"locked":"")+'" title="'+s.req+'">' +
+        '<div class="growth-avatar">'+petFaceSvg(34, idx)+'</div>' +
+        '<span class="glbl">'+s.label+'</span>' +
+      '</div>';
     }).join("");
 
     el.innerHTML =
@@ -1182,6 +1288,7 @@
         '<div class="xp-track" style="margin-top:10px;"><div class="xp-fill" style="width:'+xp+'%"></div></div>' +
         '<div style="font-size:10px;color:var(--muted);margin-top:4px;">'+xp+' / 100 XP to level '+(lvl+1)+'</div>' +
       '</div>' +
+      '<div class="card"><h3>Growth</h3><p>'+state.pet.name+' evolves as your <strong style="color:var(--text-primary);">longest-ever streak</strong> grows — never based on today alone, so a missed day never undoes progress. Stages are fixed and shown here up front, not random drops.</p><div class="growth-row">'+growthStages+'</div></div>' +
       '<div class="card"><h3>Name</h3><input type="text" id="petNameInput" value="'+state.pet.name+'" maxlength="14"></div>' +
       '<div class="card"><h3>Decorate</h3><p>Color</p><div class="swatch-row">'+colorSwatches+'</div><p style="margin-top:12px;">Accessories — unlock with longer streaks</p><div class="acc-row">'+accBtns+'</div></div>' +
       '<div class="card"><h3>Badges — unlock with total check-ins</h3><div class="badge-grid">'+badgeItems+'</div></div>';
@@ -1206,7 +1313,7 @@
         '<div class="row"><div><div class="lbl">AI pattern alerts</div><div class="desc">Flag concerning trends across your 4 pillars and show a wellbeing summary (see Home)</div></div><label class="switch"><input type="checkbox" id="aiToggle" '+(state.settings.aiAlerts?"checked":"")+'><span class="toggle-slider"></span></label></div>' +
       '</div>' +
       '<div class="card"><h3>Reminders after activities</h3><p>Tie a reminder to practice, games, or your schedule.</p>'+remindersHtml+'<button class="add-btn" id="addReminderBtn">+ Add reminder</button></div>' +
-      '<div class="card"><h3>Rewards</h3><p>Streak milestones: 5-day (+25 pts), 10-day (+50 pts), 20-day and 35-day unlock new accessories for '+state.pet.name+'. Badges unlock at 5 / 15 / 30 / 50 total check-ins, streak or not.</p></div>' +
+      '<div class="card"><h3>Rewards</h3><p>'+state.pet.name+' evolves through 5 growth stages as your longest-ever streak grows (see the Growth card on the Buddy tab for exact thresholds) — that\'s permanent and never undone by a missed day. Streak milestones: 5-day (+25 pts), 10-day (+50 pts), 20-day and 35-day unlock new accessories. Badges unlock at 5 / 15 / 30 / 50 total check-ins, streak or not.</p></div>' +
       '<button class="btn-secondary" style="width:100%;" id="testNotifBtn">Send a test reminder</button>';
     document.getElementById("notifToggle").onchange=function(e){ state.settings.notifications=e.target.checked; };
     document.getElementById("smartToggle").onchange=function(e){ state.settings.smartReminders=e.target.checked; render(); };
@@ -1404,6 +1511,7 @@
 
     var now = Date.now();
     var prevEntry = state.history.length ? state.history[state.history.length-1] : null;
+    var stageBefore = petStage();
     state.history.push({ts:now, energy:a.energy, stress:a.stress, sleep:a.sleep, motivation:a.motivation, note:combinedNote});
     // Honest streak logic: only extends the streak if the previous check-in was exactly
     // yesterday. Miss a day (or more) and it resets to 1 instead of silently continuing.
@@ -1411,6 +1519,7 @@
     state.checkedInToday=true; if(state.streak>state.longestStreak) state.longestStreak=state.streak;
     var earned=10; if(state.streak>1) earned+=5; state.points+=earned;
     closeCheckin();
+    var stageAfter = petStage();
     var milestoneMsg="";
     if(state.streak===5) milestoneMsg=" 5-day streak! +25 bonus points.";
     if(state.streak===10) milestoneMsg=" 10-day streak! +50 bonus points.";
@@ -1419,7 +1528,15 @@
     if(state.streak===5||state.streak===10) state.points += (state.streak===5?25:50);
     if(state.history.length===5||state.history.length===15||state.history.length===30||state.history.length===50) milestoneMsg += " New badge earned!";
     render();
-    showToast("+"+earned+" points · check-in logged."+milestoneMsg, 3600);
+    // A stage change is its own moment — surface it distinctly rather than folding it into
+    // the routine points toast, since this is the "visible growth" payoff the whole Buddy
+    // system is built around.
+    if(stageAfter > stageBefore){
+      var newStage = EVOLUTION_STAGES[stageAfter];
+      showToast(state.pet.name+" evolved — "+newStage.label+" stage unlocked! Check the Buddy tab.", 4500);
+    } else {
+      showToast("+"+earned+" points · check-in logged."+milestoneMsg, 3600);
+    }
   }
 
   // ---------- Pre-session goal setting — see GOAL_TYPES/GOAL_REFLECT_LABELS above for the
