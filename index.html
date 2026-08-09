@@ -102,13 +102,13 @@
 
   .tabbar { display:flex; border-top: 1px solid var(--border); background: var(--surface-1); }
   .tabbar button { flex:1; border:none; background:none; padding: 9px 2px 12px; font-size: 9.5px; font-weight:700; color: var(--muted); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; letter-spacing:0.01em; text-transform:uppercase; }
-  .tabbar button .ic { font-size: 17px; }
+  .tabbar button .ic { display:flex; align-items:center; justify-content:center; }
   .tabbar button.active { color: var(--accent); }
 
   h2.page-title { font-size: 11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color: var(--muted); margin: 6px 0 14px; }
 
   .back-row { display:flex; align-items:center; gap: 10px; margin: 2px 0 10px; cursor:pointer; }
-  .back-row .arrow { font-size: 16px; color: var(--text-primary); }
+  .back-row .arrow { display:flex; color: var(--text-primary); }
   .back-row .btitle { font-size: 13px; font-weight: 700; color: var(--text-primary); text-transform:uppercase; letter-spacing:0.04em; }
 
   /* AI Insights — tinted (not white, unlike the plain cards around it) and given a quiet
@@ -205,7 +205,7 @@
   /* Full-screen check-in */
   .checkin-screen { position: absolute; inset: 0; background: var(--page); z-index: 25; display:flex; flex-direction:column; }
   .checkin-header { display:flex; align-items:center; justify-content:space-between; padding: 20px 20px 4px; flex-shrink:0; }
-  .checkin-close { background:none; border:none; color: var(--muted); font-size: 22px; cursor:pointer; line-height:1; padding: 4px; }
+  .checkin-close { background:none; border:none; color: var(--muted); cursor:pointer; line-height:1; padding: 4px; display:flex; }
   .checkin-content { flex:1; overflow-y:auto; padding: 8px 24px 4px; display:flex; flex-direction:column; }
   .checkin-footer { padding: 12px 20px 26px; flex-shrink:0; }
 
@@ -291,11 +291,11 @@
   <main id="view-practicelog" hidden></main>
 
   <nav class="tabbar" id="tabbar">
-    <button data-tab="home" class="active"><span class="ic">◎</span>Home</button>
-    <button data-tab="trends"><span class="ic">↗</span>Trends</button>
-    <button data-tab="journal"><span class="ic">✎</span>Journal</button>
-    <button data-tab="pet"><span class="ic">☺</span>Buddy</button>
-    <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
+    <button data-tab="home" class="active"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><path d="M4 11.5 12 4l8 7.5M6 10v9h12v-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Home</button>
+    <button data-tab="trends"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l6-6 4 4 8-9"/><path d="M15 5h6v6"/></g></svg></span>Trends</button>
+    <button data-tab="journal"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h7M9 14h7M9 18h4"/></g></svg></span>Journal</button>
+    <button data-tab="pet"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.5" r="2.4"/><path d="M3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15 14.3c2.1.2 3.8 1.7 4.3 4.2"/></g></svg></span>Buddy</button>
+    <button data-tab="settings"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l1.9-1.4-2-3.4-2.2.7a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.2-.7-2 3.4L4.6 10.5a7.6 7.6 0 0 0 0 3L2.7 15l2 3.4 2.2-.8a7.6 7.6 0 0 0 2.6 1.5l.5 2.4h4l.5-2.4a7.6 7.6 0 0 0 2.6-1.5l2.2.8 2-3.4z"/></g></svg></span>Settings</button>
   </nav>
 </div>
 
@@ -389,6 +389,43 @@
   function moonIconSvg(size){
     size = size || 16;
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" fill="currentColor"/></svg>';
+  }
+
+  // ---- Tab bar + chrome icons — replacing the old single-character unicode glyphs
+  // (◎ ↗ ✎ ☺ ⚙ ← ✕ ✓), which render inconsistently across fonts/platforms and can look
+  // like stray emoji-ish characters, with the same minimal monoline SVG language used
+  // everywhere else in the app.
+  function homeIconSvg(size){
+    size = size || 20;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M4 11.5 12 4l8 7.5M6 10v9h12v-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function trendsIconSvg(size){
+    size = size || 20;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l6-6 4 4 8-9"/><path d="M15 5h6v6"/></g></svg>';
+  }
+  function journalIconSvg(size){
+    size = size || 20;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h7M9 14h7M9 18h4"/></g></svg>';
+  }
+  function buddyIconSvg(size){
+    size = size || 20;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.5" r="2.4"/><path d="M3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15 14.3c2.1.2 3.8 1.7 4.3 4.2"/></g></svg>';
+  }
+  function settingsIconSvg(size){
+    size = size || 20;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l1.9-1.4-2-3.4-2.2.7a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.2-.7-2 3.4L4.6 10.5a7.6 7.6 0 0 0 0 3L2.7 15l2 3.4 2.2-.8a7.6 7.6 0 0 0 2.6 1.5l.5 2.4h4l.5-2.4a7.6 7.6 0 0 0 2.6-1.5l2.2.8 2-3.4z"/></g></svg>';
+  }
+  function chevronLeftIconSvg(size){
+    size = size || 18;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function closeIconSvg(size){
+    size = size || 18;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  }
+  function checkIconSvg(size){
+    size = size || 16;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M4 12.5l5.5 5.5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   }
 
   // 4 pillars grounded in athlete-burnout research (Athlete Burnout Questionnaire's
@@ -994,7 +1031,7 @@
       ? '<div class="ai-banner">Generated live from your real check-in data.</div>'
       : '<div class="ai-banner">Local preview: couldn\'t reach the AI backend, so this is the built-in science-grounded fallback computed from your real check-in data instead.</div>';
     el.innerHTML =
-      '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
+      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
       banner +
       '<div class="card"><h3>Recent alerts</h3></div>' +
       alertsHtml +
@@ -1005,7 +1042,7 @@
   function renderInsightsLoading(){
     var el = document.getElementById("view-insights");
     el.innerHTML =
-      '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
+      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
       '<div class="ai-banner">Analyzing your check-ins…</div>';
     document.getElementById("insightsBack").onclick = closeInsights;
   }
@@ -1019,7 +1056,7 @@
   function renderNotEnoughDataInsights(){
     var el = document.getElementById("view-insights");
     el.innerHTML =
-      '<div class="back-row" id="insightsBack"><span class="arrow">←</span><span class="btitle">AI Insights</span></div>' +
+      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
       '<div class="card"><h3>Log your first check-in</h3><p>As soon as you check in once, Bloom will give you a personalized, science-backed read on whichever pillar needs the most attention — and it gets sharper as more days come in.</p></div>';
     document.getElementById("insightsBack").onclick = closeInsights;
   }
@@ -1061,7 +1098,7 @@
     var logs = state.practiceLogs.slice().sort(function(a,b){ return a.ts-b.ts; });
     if(!logs.length){
       el.innerHTML =
-        '<div class="back-row" id="practiceLogBack"><span class="arrow">←</span><span class="btitle">Training Load</span></div>' +
+        '<div class="back-row" id="practiceLogBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">Training Load</span></div>' +
         '<div class="card"><h3>No sessions logged yet</h3><p>Log your first practice or game from the Home tab and Bloom will start tracking your training load here.</p></div>';
       document.getElementById("practiceLogBack").onclick = closePracticeLog;
       return;
@@ -1099,7 +1136,7 @@
     }).join("");
 
     el.innerHTML =
-      '<div class="back-row" id="practiceLogBack"><span class="arrow">←</span><span class="btitle">Training Load</span></div>' +
+      '<div class="back-row" id="practiceLogBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">Training Load</span></div>' +
       (zone
         ? '<div class="ai-banner" style="border-color:'+zone.color+';">'+zone.note+'</div>'
         : '<div class="ai-banner">Log a few more sessions and Bloom will start flagging load spikes automatically — sudden jumps in training load are linked to higher injury risk (Gabbett, 2016).</div>') +
@@ -1178,7 +1215,7 @@
           '<div class="pet-stats"><span>'+state.streak+' day streak</span><span>'+state.points+' pts</span></div>' +
         '</div>' +
       '</div>' +
-      '<button class="checkin-cta ' + (state.checkedInToday?"done":"") + '" id="checkinBtn">' + (state.checkedInToday ? "✓ Checked in today" : clipboardIconSvg(17)+" Check in today") + '</button>' +
+      '<button class="checkin-cta ' + (state.checkedInToday?"done":"") + '" id="checkinBtn">' + (state.checkedInToday ? checkIconSvg(16)+" Checked in today" : clipboardIconSvg(17)+" Check in today") + '</button>' +
       (state.pendingGoal ? '' : '<button class="btn-secondary" style="width:100%;margin-bottom:10px;" id="setGoalBtn">Set a goal for next session</button>') +
       '<button class="btn-secondary" style="width:100%;margin-bottom:14px;" id="practiceCheckinBtn">Log a practice or game</button>';
 
@@ -1245,7 +1282,7 @@
       : "Check in for a couple weeks and Bloom will show which days tend to be best.";
 
     el.innerHTML =
-      '<div class="back-row" id="backBtn"><span class="arrow">←</span><span class="btitle">'+p.icon+' '+p.label+'</span></div>' +
+      '<div class="back-row" id="backBtn"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">'+p.icon+' '+p.label+'</span></div>' +
       '<div class="hero" style="padding-top:0;">' + ringHtml +
         '<div class="ring-zone"><span class="dot" style="background:'+zone.color+'"></span>' + zone.name + (hasHistory?' Zone':'') + '</div></div>' +
       '<div class="card"><h3>Why this matters</h3><p>'+p.blurb+'</p></div>' +
@@ -1378,7 +1415,7 @@
   // ---------- Settings ----------
   function renderSettings(){
     var el = document.getElementById("view-settings");
-    var remindersHtml = state.settings.customReminders.map(function(r,idx){ return '<div class="reminder-item"><span>'+r.label+' · '+fmtTime(r.time)+'</span><button data-remove="'+idx+'">✕</button></div>'; }).join("");
+    var remindersHtml = state.settings.customReminders.map(function(r,idx){ return '<div class="reminder-item"><span>'+r.label+' · '+fmtTime(r.time)+'</span><button data-remove="'+idx+'" style="display:flex;">'+closeIconSvg(14)+'</button></div>'; }).join("");
     var themeOpts = [
       {key:"system", label:"Auto", ic:"" },
       {key:"light", label:"Light", ic: sunIconSvg(14) },
@@ -1458,7 +1495,7 @@
     var screen=document.createElement("div"); screen.className="checkin-screen"; screen.id="checkinScreen";
     var step = state.checkin.step;
 
-    var header = '<div class="checkin-header">' + stepDotsHtml() + '<button class="checkin-close" id="closeCheckin">✕</button></div>';
+    var header = '<div class="checkin-header">' + stepDotsHtml() + '<button class="checkin-close" id="closeCheckin">'+closeIconSvg(20)+'</button></div>';
     var body = "", footer = "";
 
     if(step <= PILLARS.length){
@@ -1648,7 +1685,7 @@
       var sel = gs.type === t;
       return '<button class="chip '+(sel?"selected":"")+'" data-gtype="'+t+'">'+t+'</button>';
     }).join("");
-    var header = '<div class="checkin-header"><div class="step-dots"></div><button class="checkin-close" id="closeGoalSetting">✕</button></div>';
+    var header = '<div class="checkin-header"><div class="step-dots"></div><button class="checkin-close" id="closeGoalSetting">'+closeIconSvg(20)+'</button></div>';
     var body = '<div class="q-body-rich">' +
       '<div class="q-topline"><div class="plabel">'+practiceIconSvg("goal")+' Goal for next session</div></div>' +
       '<div class="q-text-rich">What\'s one specific thing you want to focus on or achieve?</div>' +
@@ -1726,7 +1763,7 @@
     var stepType = pc.steps[step-1];
     var isLastStep = step === pc.steps.length;
 
-    var header = '<div class="checkin-header">' + practiceStepDotsHtml() + '<button class="checkin-close" id="closePracticeCheckin">✕</button></div>';
+    var header = '<div class="checkin-header">' + practiceStepDotsHtml() + '<button class="checkin-close" id="closePracticeCheckin">'+closeIconSvg(20)+'</button></div>';
     var body = "", footer = "";
 
     if(stepType === "length"){
