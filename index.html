@@ -676,6 +676,7 @@
 
   var state = {
     tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false,
+    insightsSubTab: "patterns", insightsData: null, actionIdx: {energy:0, stress:0, sleep:0, motivation:0},
     points: DEMO_MODE ? 240 : 0,
     streak: DEMO_MODE ? 6 : 0,
     longestStreak: DEMO_MODE ? 34 : 0,
@@ -795,12 +796,48 @@
   // ---- Sparse-data insights (1-2 check-ins) — a single day can't show a real trend, but it
   // can still point at whichever pillar is lowest right now and give a specific, evidence-
   // based tip for it, instead of just saying "not enough data" and giving nothing useful.
-  var PILLAR_TIPS = {
-    energy: "Exhaustion is the strongest single predictor of burnout in the validated Athlete Burnout Questionnaire — an extra rest day or an earlier bedtime this week can measurably move it.",
-    stress: "Perceived stress-recovery balance predicts burnout and insomnia in adolescent athletes independent of training volume — one deliberate recovery activity today (an easy walk, stretching, unstructured downtime) helps more than it seems like it would.",
-    sleep: "Sleep quality is one of the most consistent predictors of burnout in youth athletes — a consistent bedtime and less screen time in the hour before bed are the two highest-leverage changes.",
-    motivation: "Losing your sense of accomplishment or enjoyment is its own measurable burnout dimension, separate from fatigue — research on motivation (Self-Determination Theory) points to reconnecting with autonomy (a choice that's really yours) or relatedness (time with teammates) as what tends to help most."
+  // ---- Action Plan library — one clear, doable action per pillar, each grounded in the
+  // same research base as the rest of the app (Athlete Burnout Questionnaire, Self-
+  // Determination Theory, adolescent sleep/stress research). Multiple action variants per
+  // pillar so "show another idea" surfaces genuinely different, still-valid suggestions —
+  // that's browsing options, not a random reward, so it doesn't conflict with the app's
+  // fixed/disclosed-rewards principle.
+  var ACTION_LIBRARY = {
+    energy: {
+      rationale: "Exhaustion is the strongest single predictor of burnout in the validated Athlete Burnout Questionnaire.",
+      actions: [
+        "Move bedtime 30 minutes earlier tonight — even one extra sleep cycle measurably restores energy.",
+        "Add a genuine rest day this week instead of pushing through — planned rest lowers exhaustion risk more than it costs you.",
+        "Eat something within 30 minutes after your next practice — refueling soon after exercise speeds energy recovery."
+      ]
+    },
+    stress: {
+      rationale: "Perceived stress-recovery balance predicts burnout and insomnia in adolescent athletes, independent of training volume.",
+      actions: [
+        "Do one deliberate recovery activity today — an easy walk, stretching, or unstructured downtime with no goal attached.",
+        "Write down the one thing causing the most pressure right now — naming a stressor measurably reduces how intense it feels.",
+        "Take 5 minutes of slow breathing (4 seconds in, 6 seconds out) before your next practice or test."
+      ]
+    },
+    sleep: {
+      rationale: "Sleep quality is one of the most consistent predictors of burnout in youth athletes.",
+      actions: [
+        "Set a consistent bedtime tonight, even 20 minutes earlier than usual — consistency matters as much as total hours.",
+        "Put your phone out of arm's reach 30 minutes before bed — screen light in that window is a major sleep-quality disruptor.",
+        "Skip caffeine after 3pm today — it stays in your system for hours and fragments deep sleep."
+      ]
+    },
+    motivation: {
+      rationale: "Losing your sense of accomplishment or enjoyment is its own measurable burnout dimension (sport devaluation), separate from fatigue.",
+      actions: [
+        "Pick one small part of today's practice that's fully your choice — autonomy is one of the three core drivers of real motivation.",
+        "Reach out to one teammate today — connection with others is a proven lever for rebuilding motivation.",
+        "Remind yourself of one moment you were proud of this season — reconnecting with past success rebuilds a sense of accomplishment."
+      ]
+    }
   };
+  // Back-compat shorthand used by the sparse-data narrative below.
+  var PILLAR_TIPS = { energy: ACTION_LIBRARY.energy.rationale, stress: ACTION_LIBRARY.stress.rationale, sleep: ACTION_LIBRARY.sleep.rationale, motivation: ACTION_LIBRARY.motivation.rationale };
   function extremePillarInEntry(h, findMax){
     var picked=null, pickedScore=findMax?-1:999;
     PILLARS.forEach(function(p){
@@ -969,7 +1006,7 @@
 
   function openPillar(key){ state.detailPillar = key; state.chartView = "chart"; render(); }
   function closePillar(){ state.detailPillar = null; render(); }
-  function openInsights(){ state.showInsights = true; render(); }
+  function openInsights(){ state.showInsights = true; state.insightsSubTab = "patterns"; state.insightsData = null; state.actionIdx = {energy:0, stress:0, sleep:0, motivation:0}; render(); }
   function closeInsights(){ state.showInsights = false; render(); }
   function openPracticeLog(){ state.showPracticeLog = true; render(); }
   function closePracticeLog(){ state.showPracticeLog = false; render(); }
@@ -1021,52 +1058,69 @@
     });
   }
 
-  function renderAlertsAndNarrative(alerts, narrative, source){
-    var el = document.getElementById("view-insights");
-    var alertsHtml = alerts.map(function(a){
-      var time = a.time || "Today";
-      return '<div class="alert-card">'+(a.icon?'<div class="a-ic">'+a.icon+'</div>':'')+'<div><div class="a-text">'+a.text+'</div><div class="a-time">'+time+'</div></div></div>';
-    }).join("");
-    var banner = source === "live"
-      ? '<div class="ai-banner">Generated live from your real check-in data.</div>'
-      : '<div class="ai-banner">Local preview: couldn\'t reach the AI backend, so this is the built-in science-grounded fallback computed from your real check-in data instead.</div>';
-    el.innerHTML =
-      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
-      banner +
-      '<div class="card"><h3>Recent alerts</h3></div>' +
-      alertsHtml +
-      '<div class="card" style="margin-top:14px;"><h3>Your wellbeing over time</h3><div class="narrative-text">'+narrative+'</div></div>';
-    document.getElementById("insightsBack").onclick = closeInsights;
-  }
-
-  function renderInsightsLoading(){
-    var el = document.getElementById("view-insights");
-    el.innerHTML =
-      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
-      '<div class="ai-banner">Analyzing your check-ins…</div>';
-    document.getElementById("insightsBack").onclick = closeInsights;
-  }
-
   function historyForBackend(){
     return state.history.map(function(h){
       return { date: fmtDate(h.ts), energy: scoreOf(h,"energy"), stress: scoreOf(h,"stress"), sleep: scoreOf(h,"sleep"), motivation: scoreOf(h,"motivation") };
     });
   }
 
-  function renderNotEnoughDataInsights(){
-    var el = document.getElementById("view-insights");
-    el.innerHTML =
-      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
-      '<div class="card"><h3>Log your first check-in</h3><p>As soon as you check in once, Bloom will give you a personalized, science-backed read on whichever pillar needs the most attention — and it gets sharper as more days come in.</p></div>';
-    document.getElementById("insightsBack").onclick = closeInsights;
+  // ---- AI Insights is now two distinct sections, switchable via a segmented control:
+  // "Patterns" (the existing trend/alert detection, live-AI or local fallback) and
+  // "Action Plan" (new — always-available, no network needed, points at exactly one
+  // pillar and one concrete thing to do about it right now). They're rendered as
+  // genuinely separate bodies rather than stacked on one long scroll, per the redesign
+  // direction of giving this its own section instead of bolting more onto Patterns.
+  function actionPlanFocus(){
+    if(state.history.length >= 3){
+      var p = weakestPillar();
+      return { pillar: p, score: Math.round(avgScoreLastN(7, p.key)), mode: "trend" };
+    }
+    var latest = state.history[state.history.length-1];
+    var weak = extremePillarInEntry(latest, false);
+    return { pillar: weak.pillar, score: weak.score, mode: "latest" };
   }
-
-  function renderInsights(){
-    if(state.history.length < 1){ renderNotEnoughDataInsights(); return; }
-    renderInsightsLoading();
+  function renderActionPlanBody(){
+    if(state.history.length < 1){
+      return '<div class="card"><h3>Log your first check-in</h3><p>Once you check in, Bloom will always have one clear, science-backed action ready for whichever pillar needs it most — no waiting for a trend to build first.</p></div>';
+    }
+    var focus = actionPlanFocus();
+    var p = focus.pillar;
+    var lib = ACTION_LIBRARY[p.key];
+    var idx = state.actionIdx[p.key] % lib.actions.length;
+    var scopeLabel = focus.mode==="trend" ? "This week's focus" : "Right now";
+    return (
+      '<div class="card" style="text-align:center;">' +
+        '<div style="display:flex;justify-content:center;margin-bottom:8px;">'+ringSvg(focus.score, 64, 7, true)+'</div>' +
+        '<div style="font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);">'+scopeLabel+'</div>' +
+        '<div style="font-size:15px;font-weight:800;color:var(--text-primary);margin-top:3px;display:flex;align-items:center;justify-content:center;gap:6px;">'+p.icon+' '+p.label+' · '+focus.score+'/100</div>' +
+      '</div>' +
+      '<div class="card" id="actionCard" style="background:var(--accent-soft);border-color:rgba(var(--accent-rgb),0.3);">' +
+        '<h3 style="color:var(--accent);">Try this</h3>' +
+        '<p style="color:var(--text-primary);font-weight:600;font-size:14px;line-height:1.5;">'+lib.actions[idx]+'</p>' +
+      '</div>' +
+      '<div class="card"><h3>Why this helps</h3><p>'+lib.rationale+'</p></div>' +
+      '<button class="btn-secondary" style="width:100%;" id="anotherIdeaBtn">Show another idea</button>'
+    );
+  }
+  function renderPatternsBody(){
+    if(state.history.length < 1){
+      return '<div class="card"><h3>Log your first check-in</h3><p>As soon as you check in once, Bloom will give you a personalized, science-backed read on whichever pillar needs the most attention — and it gets sharper as more days come in.</p></div>';
+    }
+    if(!state.insightsData) return '<div class="ai-banner">Analyzing your check-ins…</div>';
+    var d = state.insightsData;
+    var alertsHtml = d.alerts.map(function(a){
+      var time = a.time || "Today";
+      return '<div class="alert-card">'+(a.icon?'<div class="a-ic">'+a.icon+'</div>':'')+'<div><div class="a-text">'+a.text+'</div><div class="a-time">'+time+'</div></div></div>';
+    }).join("");
+    var banner = d.source === "live"
+      ? '<div class="ai-banner">Generated live from your real check-in data.</div>'
+      : '<div class="ai-banner">Local preview: couldn\'t reach the AI backend, so this is the built-in science-grounded fallback computed from your real check-in data instead.</div>';
+    return banner + '<div class="card"><h3>Recent alerts</h3></div>' + alertsHtml +
+      '<div class="card" style="margin-top:14px;"><h3>Your wellbeing over time</h3><div class="narrative-text">'+d.narrative+'</div></div>';
+  }
+  function fetchInsightsData(){
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 3000);
-
     fetch(AI_BACKEND_URL, {
       method: "POST",
       headers: {"content-type":"application/json"},
@@ -1078,19 +1132,49 @@
       clearTimeout(timeout);
       if(!state.showInsights) return; // user navigated away before this resolved
       if(!Array.isArray(data.alerts) || typeof data.narrative !== "string") throw new Error("unexpected shape");
-      renderAlertsAndNarrative(data.alerts, data.narrative, "live");
+      state.insightsData = { alerts: data.alerts, narrative: data.narrative, source: "live" };
+      if(state.insightsSubTab === "patterns") renderInsightsView();
     })
     .catch(function(){
       clearTimeout(timeout);
       if(!state.showInsights) return;
+      var alerts, narrative;
       if(state.history.length < 3){
         var sd = sparseDataFallback();
-        renderAlertsAndNarrative(sd.alerts, sd.narrative, "local");
-        return;
+        alerts = sd.alerts; narrative = sd.narrative;
+      } else {
+        alerts = detectAlerts(); narrative = generateWellbeingNarrative();
       }
-      renderAlertsAndNarrative(detectAlerts(), generateWellbeingNarrative(), "local");
+      state.insightsData = { alerts: alerts, narrative: narrative, source: "local" };
+      if(state.insightsSubTab === "patterns") renderInsightsView();
     });
   }
+  function renderInsightsView(){
+    var el = document.getElementById("view-insights");
+    var segHtml = ['patterns','action'].map(function(k){
+      var label = k==="patterns" ? "Patterns" : "Action Plan";
+      return '<button class="seg-btn '+(state.insightsSubTab===k?"selected":"")+'" data-insights-tab="'+k+'">'+label+'</button>';
+    }).join("");
+    var bodyHtml = state.insightsSubTab === "action" ? renderActionPlanBody() : renderPatternsBody();
+    el.innerHTML =
+      '<div class="back-row" id="insightsBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">AI Insights</span></div>' +
+      '<div class="seg-control" style="margin:0 0 14px;">'+segHtml+'</div>' +
+      '<div id="insightsBody">'+bodyHtml+'</div>';
+    document.getElementById("insightsBack").onclick = closeInsights;
+    el.querySelectorAll("[data-insights-tab]").forEach(function(b){
+      b.onclick = function(){ state.insightsSubTab = b.getAttribute("data-insights-tab"); renderInsightsView(); };
+    });
+    var moreBtn = document.getElementById("anotherIdeaBtn");
+    if(moreBtn) moreBtn.onclick = function(){
+      var focus = actionPlanFocus();
+      state.actionIdx[focus.pillar.key] = (state.actionIdx[focus.pillar.key]+1) % ACTION_LIBRARY[focus.pillar.key].actions.length;
+      renderInsightsView();
+    };
+    if(state.insightsSubTab === "patterns" && !state.insightsData && state.history.length >= 1){
+      fetchInsightsData();
+    }
+  }
+  function renderInsights(){ renderInsightsView(); }
 
   // ---------- Training Load (post-practice check-ins over time) ----------
   function renderPracticeLog(){
