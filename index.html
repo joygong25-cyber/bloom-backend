@@ -134,6 +134,32 @@
   .narrative-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; }
   .narrative-text strong { color: var(--text-primary); }
 
+  /* Talk to Bloom — open-ended chat, laid out as its own flex column so the message list
+     scrolls independently while the composer stays pinned at the bottom, unlike the plain
+     scrolling <main> every other view uses. */
+  #view-talk { display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
+  .talk-messages { flex:1; overflow-y:auto; padding-bottom: 10px; }
+  .talk-messages::-webkit-scrollbar { width:0; }
+  .talk-row { display:flex; margin-bottom: 10px; }
+  .talk-row.user { justify-content:flex-end; }
+  .talk-row.bloom { justify-content:flex-start; }
+  .talk-bubble { max-width: 82%; padding: 11px 14px; border-radius: 16px; font-size: 13.5px; line-height:1.5; }
+  .talk-row.user .talk-bubble { background: var(--cta-bg); color: var(--cta-text); border-bottom-right-radius: 5px; }
+  .talk-row.bloom .talk-bubble { background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); border-bottom-left-radius: 5px; box-shadow: var(--card-shadow); }
+  .talk-resource-card { display:flex; gap:10px; background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.35); border-radius: 16px; padding: 13px 15px; margin: 4px 0 14px; }
+  .talk-resource-card .tric { color: var(--critical); flex-shrink:0; margin-top:1px; }
+  .talk-resource-card .trtext { font-size: 12.5px; color: var(--text-primary); line-height:1.5; }
+  .talk-resource-card .trtext strong { display:block; margin-bottom:2px; color: var(--critical); }
+  .talk-starter-row { display:flex; flex-wrap:wrap; gap:8px; margin: 6px 0 4px; }
+  .talk-input-row { flex-shrink:0; display:flex; align-items:flex-end; gap:8px; padding: 10px 20px 18px; border-top: 1px solid var(--border); background: var(--page); }
+  .talk-input-row textarea { flex:1; min-height:40px; max-height:90px; border-radius:18px; border:1px solid var(--border); background: var(--surface-2); color: var(--text-primary); padding: 10px 14px; font-size: 13.5px; font-family: inherit; resize:none; }
+  .talk-send-btn { flex-shrink:0; width:40px; height:40px; border-radius:50%; border:none; background: var(--accent); color: var(--on-accent); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .talk-send-btn:disabled { opacity:0.35; cursor:not-allowed; }
+  .talk-typing { display:flex; gap:4px; padding: 4px 2px; }
+  .talk-typing span { width:6px; height:6px; border-radius:50%; background: var(--muted); animation: thinkPulse 1s ease-in-out infinite; }
+  .talk-typing span:nth-child(2) { animation-delay: .15s; }
+  .talk-typing span:nth-child(3) { animation-delay: .3s; }
+
   .stat-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; box-shadow: var(--card-shadow); }
   .stat-tile .val { font-size: 22px; font-weight: 800; color: var(--text-primary); }
@@ -289,6 +315,7 @@
   <main id="view-detail" hidden></main>
   <main id="view-insights" hidden></main>
   <main id="view-practicelog" hidden></main>
+  <main id="view-talk" hidden></main>
 
   <nav class="tabbar" id="tabbar">
     <button data-tab="home" class="active"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><path d="M4 11.5 12 4l8 7.5M6 10v9h12v-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Home</button>
@@ -426,6 +453,18 @@
   function checkIconSvg(size){
     size = size || 16;
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M4 12.5l5.5 5.5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function chatIconSvg(size){
+    size = size || 18;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M4 5h16v11H9l-4 4v-4H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function sendIconSvg(size){
+    size = size || 18;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M12 19V6M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function alertTriangleIconSvg(size){
+    size = size || 16;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20H2z"/><path d="M12 9.5v5M12 17.5h.01"/></g></svg>';
   }
 
   // 4 pillars grounded in athlete-burnout research (Athlete Burnout Questionnaire's
@@ -612,6 +651,12 @@
     return "Severe — limits movement";
   }
   var SESSION_TYPES = ["Practice","Game","Scrimmage","Conditioning","Weight room","Other"];
+  // Added in response to real MVP feedback ("maybe add something more about the specifics
+  // of how you trained that day") — a quick multi-select of what was actually worked on,
+  // since post-practice check-in was the single most-valued feature in testing and typing
+  // it out every time is real friction. Shown in the practice log so entries read as more
+  // than just numbers.
+  var TRAINING_FOCUS_TAGS = ["Strength","Conditioning","Skill/technique","Speed & agility","Scrimmage/game play","Recovery/mobility","Film/strategy"];
   var PRACTICE_STEPS = [
     { key:"rpe", icon:practiceIconSvg("rpe"), label:"Session RPE", question:"How hard did that session feel — as a whole, physically and mentally?",
       min:0, max:10, captionFn:function(v){ return v+" — "+RPE_LABELS[v]; }, endLabels:["Rest","Maximal"],
@@ -636,19 +681,19 @@
   var GOAL_REFLECT_LABELS = ["Didn't happen","Partially","Somewhat","Mostly","Nailed it"];
 
   var samplePracticeDays = [
-    {d:0,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     note:"Focused on conditioning."},
-    {d:2,  duration:75,  rpe:5, recovery:7, soreness:3, type:"Practice",     note:""},
-    {d:3,  duration:90,  rpe:6, recovery:6, soreness:4, type:"Game",         note:"Tough opponent, high intensity."},
-    {d:4,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     note:""},
-    {d:6,  duration:45,  rpe:3, recovery:9, soreness:1, type:"Conditioning", note:"Easy recovery session."},
-    {d:7,  duration:90,  rpe:7, recovery:5, soreness:5, type:"Game",         note:"Big win, left it all out there."},
-    {d:9,  duration:60,  rpe:5, recovery:7, soreness:3, type:"Practice",     note:""},
-    {d:10, duration:75,  rpe:6, recovery:6, soreness:4, type:"Practice",     note:"Coach added extra drills."},
-    {d:11, duration:100, rpe:8, recovery:4, soreness:7, type:"Game",         note:"Playoff intensity."},
-    {d:13, duration:110, rpe:8, recovery:3, soreness:8, type:"Practice",     note:"Tournament prep — longest session in weeks."}
+    {d:0,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     focus:["Conditioning"],                         note:"Focused on conditioning."},
+    {d:2,  duration:75,  rpe:5, recovery:7, soreness:3, type:"Practice",     focus:["Skill/technique"],                      note:""},
+    {d:3,  duration:90,  rpe:6, recovery:6, soreness:4, type:"Game",         focus:["Scrimmage/game play"],                  note:"Tough opponent, high intensity."},
+    {d:4,  duration:60,  rpe:4, recovery:8, soreness:2, type:"Practice",     focus:["Skill/technique","Speed & agility"],    note:""},
+    {d:6,  duration:45,  rpe:3, recovery:9, soreness:1, type:"Conditioning", focus:["Recovery/mobility"],                    note:"Easy recovery session."},
+    {d:7,  duration:90,  rpe:7, recovery:5, soreness:5, type:"Game",         focus:["Scrimmage/game play"],                  note:"Big win, left it all out there."},
+    {d:9,  duration:60,  rpe:5, recovery:7, soreness:3, type:"Practice",     focus:["Strength","Skill/technique"],           note:""},
+    {d:10, duration:75,  rpe:6, recovery:6, soreness:4, type:"Practice",     focus:["Skill/technique"],                      note:"Coach added extra drills."},
+    {d:11, duration:100, rpe:8, recovery:4, soreness:7, type:"Game",         focus:["Scrimmage/game play"],                  note:"Playoff intensity."},
+    {d:13, duration:110, rpe:8, recovery:3, soreness:8, type:"Practice",     focus:["Strength","Conditioning"],              note:"Tournament prep — longest session in weeks."}
   ];
   var practiceLogs = samplePracticeDays.map(function(e){
-    return { ts: demoBaseTs + e.d*DAY_MS + 17*3600000, duration:e.duration, rpe:e.rpe, recovery:e.recovery, soreness:e.soreness, load:e.duration*e.rpe, sessionType:e.type, note:e.note };
+    return { ts: demoBaseTs + e.d*DAY_MS + 17*3600000, duration:e.duration, rpe:e.rpe, recovery:e.recovery, soreness:e.soreness, load:e.duration*e.rpe, sessionType:e.type, focusTags:e.focus||[], note:e.note };
   });
 
   // ---- Real persistence: each device/browser keeps its own progress in localStorage. No
@@ -661,7 +706,10 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         points: state.points, streak: state.streak, longestStreak: state.longestStreak,
         history: state.history, practiceLogs: state.practiceLogs,
-        pet: state.pet, settings: state.settings, pendingGoal: state.pendingGoal
+        pet: state.pet, settings: state.settings, pendingGoal: state.pendingGoal,
+        // Only the count + date persist for Talk to Bloom's daily cap — never the actual
+        // message text, which is intentionally kept in memory only (see state.talk above).
+        talkQuota: { dayKey: state.talk.dayKey, countToday: state.talk.countToday }
       }));
     } catch(e) { /* storage unavailable/full — app still works for this session */ }
   }
@@ -675,8 +723,13 @@
   }
 
   var state = {
-    tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false,
+    tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false, showTalk: false,
     insightsSubTab: "patterns", insightsData: null, actionIdx: {energy:0, stress:0, sleep:0, motivation:0},
+    // Talk to Bloom lives only in memory, not localStorage — it's the one place someone
+    // might type something quite personal, so it doesn't stick around after a refresh.
+    // The daily count DOES persist (via settings-style merge below) purely as a lightweight,
+    // disclosed cost/abuse guard, reset automatically whenever the local date changes.
+    talk: { messages: [], sending: false, dayKey: null, countToday: 0 },
     points: DEMO_MODE ? 240 : 0,
     streak: DEMO_MODE ? 6 : 0,
     longestStreak: DEMO_MODE ? 34 : 0,
@@ -704,6 +757,7 @@
       if(typeof saved.longestStreak === "number") state.longestStreak = saved.longestStreak;
       if(saved.pet && typeof saved.pet === "object") state.pet = Object.assign({}, state.pet, saved.pet);
       if(saved.settings && typeof saved.settings === "object") state.settings = Object.assign({}, state.settings, saved.settings);
+      if(saved.talkQuota && typeof saved.talkQuota === "object"){ state.talk.dayKey = saved.talkQuota.dayKey || null; state.talk.countToday = saved.talkQuota.countToday || 0; }
       if(saved.pendingGoal && typeof saved.pendingGoal === "object") state.pendingGoal = saved.pendingGoal;
     }
   }
@@ -985,18 +1039,21 @@
 
   function render(){
     persist();
-    document.querySelectorAll(".tabbar button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-tab")===state.tab && !state.detailPillar && !state.showInsights && !state.showPracticeLog); });
+    document.querySelectorAll(".tabbar button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-tab")===state.tab && !state.detailPillar && !state.showInsights && !state.showPracticeLog && !state.showTalk); });
     var showDetail = !!state.detailPillar;
     var showInsights = !!state.showInsights;
     var showPracticeLog = !!state.showPracticeLog;
-    ["home","trends","journal","pet","settings"].forEach(function(t){ document.getElementById("view-"+t).hidden = showDetail || showInsights || showPracticeLog || (t!==state.tab); });
+    var showTalk = !!state.showTalk;
+    ["home","trends","journal","pet","settings"].forEach(function(t){ document.getElementById("view-"+t).hidden = showDetail || showInsights || showPracticeLog || showTalk || (t!==state.tab); });
     document.getElementById("view-detail").hidden = !showDetail;
     document.getElementById("view-insights").hidden = !showInsights;
     document.getElementById("view-practicelog").hidden = !showPracticeLog;
+    document.getElementById("view-talk").hidden = !showTalk;
 
     if(showDetail){ renderDetail(state.detailPillar); return; }
     if(showInsights){ renderInsights(); return; }
     if(showPracticeLog){ renderPracticeLog(); return; }
+    if(showTalk){ renderTalkView(); return; }
     if(state.tab==="home") renderHome();
     if(state.tab==="trends") renderTrends();
     if(state.tab==="journal") renderJournal();
@@ -1017,6 +1074,8 @@
   // rule-based version so this file still works as a standalone demo on its own.
   var AI_BACKEND_URL = "https://bloom-backend-rv0g.onrender.com/api/insights";
   var AI_FOLLOWUP_URL = "https://bloom-backend-rv0g.onrender.com/api/followup";
+  var AI_TALK_URL = "https://bloom-backend-rv0g.onrender.com/api/talk";
+  var TALK_DAILY_LIMIT = 25; // lightweight, disclosed cost/abuse guard — not a punishment, just a practical cap on a real paid API key
 
   // ---------- Check-in "what's contributing?" follow-up, Claude-generated per answer ----------
   // Fired the moment an athlete picks a value for a pillar. Claude decides the question AND
@@ -1176,6 +1235,115 @@
   }
   function renderInsights(){ renderInsightsView(); }
 
+  // ---------- Talk to Bloom — open-ended chat, scoped to athletic wellbeing (see
+  // server.js's TALK_SYSTEM_PROMPT for the actual guardrails: never diagnoses, redirects
+  // off-topic requests, and treats anything resembling a real crisis as something to hand
+  // off to a real person, not something to keep chatting through). ----------
+  var TALK_STARTERS = [
+    "I'm nervous about a game coming up",
+    "I haven't been sleeping well",
+    "I'm feeling burnt out"
+  ];
+  var CRISIS_LINE_TEXT = "call or text 988 (Suicide & Crisis Lifeline), or text HOME to 741741 (Crisis Text Line)";
+
+  function resetTalkQuotaIfNewDay(){
+    var today = localDayKey(Date.now());
+    if(state.talk.dayKey !== today){ state.talk.dayKey = today; state.talk.countToday = 0; }
+  }
+  function openTalk(){ resetTalkQuotaIfNewDay(); state.showTalk = true; render(); scrollTalkToBottom(); }
+  function closeTalk(){ state.showTalk = false; render(); }
+  function scrollTalkToBottom(){
+    var m = document.querySelector(".talk-messages");
+    if(m) m.scrollTop = m.scrollHeight;
+  }
+  function recentContextForTalk(){
+    if(!state.history.length) return null;
+    var latest = state.history[state.history.length-1];
+    return { energy: scoreOf(latest,"energy"), stress: scoreOf(latest,"stress"), sleep: scoreOf(latest,"sleep"), motivation: scoreOf(latest,"motivation") };
+  }
+  function sendTalkMessage(text){
+    text = (text||"").trim();
+    if(!text || state.talk.sending) return;
+    resetTalkQuotaIfNewDay();
+    if(state.talk.countToday >= TALK_DAILY_LIMIT) return;
+    var priorHistory = state.talk.messages.map(function(m){ return { role: m.role, text: m.text }; });
+    state.talk.messages.push({ role:"user", text: text });
+    state.talk.countToday += 1;
+    state.talk.sending = true;
+    render(); scrollTalkToBottom();
+
+    var controller = new AbortController();
+    var timeout = setTimeout(function(){ controller.abort(); }, 12000);
+    fetch(AI_TALK_URL, {
+      method: "POST",
+      headers: {"content-type":"application/json"},
+      body: JSON.stringify({ message: text, history: priorHistory, recentContext: recentContextForTalk() }),
+      signal: controller.signal
+    })
+    .then(function(r){ if(!r.ok) throw new Error("backend responded "+r.status); return r.json(); })
+    .then(function(data){
+      clearTimeout(timeout);
+      if(typeof data.reply !== "string") throw new Error("unexpected shape");
+      state.talk.messages.push({ role:"bloom", text: data.reply, concern: !!data.concern });
+      state.talk.sending = false;
+      render(); scrollTalkToBottom();
+    })
+    .catch(function(){
+      clearTimeout(timeout);
+      state.talk.messages.push({
+        role:"bloom",
+        text: "Bloom's AI is taking a quick break right now — try again in a minute. If you ever need to talk to someone right now, a trusted adult, school counselor, or "+CRISIS_LINE_TEXT+" are always there.",
+        concern: false
+      });
+      state.talk.sending = false;
+      render(); scrollTalkToBottom();
+    });
+  }
+  function talkBubbleHtml(m){
+    if(m.role === "user"){
+      return '<div class="talk-row user"><div class="talk-bubble">'+escapeHtml(m.text)+'</div></div>';
+    }
+    var resource = m.concern ? (
+      '<div class="talk-resource-card"><span class="tric">'+alertTriangleIconSvg(18)+'</span>' +
+      '<div class="trtext"><strong>If this feels urgent, please reach out now</strong>A trusted adult, a school counselor, or '+CRISIS_LINE_TEXT+' can help right away — Bloom is a wellbeing tool, not a substitute for real support.</div></div>'
+    ) : "";
+    return '<div class="talk-row bloom"><div class="talk-bubble">'+escapeHtml(m.text)+'</div></div>' + resource;
+  }
+  function escapeHtml(s){ var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+  function renderTalkView(){
+    resetTalkQuotaIfNewDay();
+    var el = document.getElementById("view-talk");
+    var atLimit = state.talk.countToday >= TALK_DAILY_LIMIT;
+    var messagesHtml =
+      '<div class="ai-banner">Talk to Bloom is an AI feature, not a therapist or doctor. If you\'re in crisis, '+CRISIS_LINE_TEXT+', any time.</div>' +
+      (state.talk.messages.length === 0 ?
+        '<div class="talk-starter-row">' + TALK_STARTERS.map(function(s){ return '<span class="chip" data-starter="'+encodeURIComponent(s)+'">'+s+'</span>'; }).join("") + '</div>'
+        : "") +
+      state.talk.messages.map(talkBubbleHtml).join("") +
+      (state.talk.sending ? '<div class="talk-row bloom"><div class="talk-bubble talk-typing"><span></span><span></span><span></span></div></div>' : "");
+    var composerHtml = atLimit
+      ? '<div class="talk-input-row"><div class="ai-banner" style="margin:0;flex:1;">You\'ve reached today\'s chat limit. Try Action Plan for another idea, or come back tomorrow.</div></div>'
+      : '<div class="talk-input-row"><textarea id="talkInput" placeholder="Tell me what\'s going on…" rows="1" '+(state.talk.sending?"disabled":"")+'></textarea><button class="talk-send-btn" id="talkSendBtn" '+(state.talk.sending?"disabled":"")+'>'+sendIconSvg(18)+'</button></div>';
+    el.innerHTML =
+      '<div class="back-row" id="talkBack" style="margin:2px 20px 6px;flex-shrink:0;"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">Talk to Bloom</span></div>' +
+      '<div class="talk-messages" style="padding-left:20px;padding-right:20px;">'+messagesHtml+'</div>' +
+      composerHtml;
+    document.getElementById("talkBack").onclick = closeTalk;
+    el.querySelectorAll("[data-starter]").forEach(function(c){
+      c.onclick = function(){
+        var ta = document.getElementById("talkInput");
+        if(ta){ ta.value = decodeURIComponent(c.getAttribute("data-starter")); ta.focus(); }
+      };
+    });
+    var sendBtn = document.getElementById("talkSendBtn");
+    var input = document.getElementById("talkInput");
+    if(sendBtn && input){
+      sendBtn.onclick = function(){ sendTalkMessage(input.value); };
+      input.onkeydown = function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendTalkMessage(input.value); } };
+    }
+    scrollTalkToBottom();
+  }
+
   // ---------- Training Load (post-practice check-ins over time) ----------
   function renderPracticeLog(){
     var el = document.getElementById("view-practicelog");
@@ -1212,6 +1380,9 @@
           '<span>·</span><span style="display:inline-flex;align-items:center;gap:3px;">'+practiceIconSvg("recovery")+' Recovery '+e.recovery+'</span>' +
           '<span>·</span><span style="display:inline-flex;align-items:center;gap:3px;">'+practiceIconSvg("soreness")+' Soreness '+e.soreness+'</span>' +
         '</div>' +
+        (e.focusTags && e.focusTags.length ? '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">' +
+          e.focusTags.map(function(t){ return '<span style="font-size:10px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:3px 9px;">'+t+'</span>'; }).join("") +
+        '</div>' : '') +
         (e.goal ? '<div style="font-size:11.5px;color:var(--text-secondary);background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">' +
           '<strong style="color:var(--text-primary);">Goal:</strong> "'+e.goal.text+'" — '+GOAL_REFLECT_LABELS[e.goal.rating-1]+
           (e.goal.note ? ' — '+e.goal.note : '') + '</div>' : '') +
@@ -1291,6 +1462,11 @@
         '<div class="ai-body"><div class="ai-title">Goal for next session</div><div class="ai-sub">"'+state.pendingGoal.text+'"</div></div>' +
         '<span class="ai-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>' +
       '</div>' : '') +
+      '<div class="ai-card" id="talkCard">' +
+        '<span class="ai-ic">'+chatIconSvg(18)+'</span>' +
+        '<div class="ai-body"><div class="ai-title">Talk to Bloom</div><div class="ai-sub">Tell us what\'s going on, in your own words</div></div>' +
+        '<span class="ai-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>' +
+      '</div>' +
       '<div class="pet-card" id="petCard">' +
         '<div class="pet-avatar">' + petFaceSvg(52) + petAccessoryIcon(20) + '</div>' +
         '<div class="pet-info">' +
@@ -1308,6 +1484,7 @@
     var aiCard = document.getElementById("aiCard"); if(aiCard) aiCard.onclick = openInsights;
     var loadCard = document.getElementById("loadCard"); if(loadCard) loadCard.onclick = openPracticeLog;
     var goalCard = document.getElementById("goalCard"); if(goalCard) goalCard.onclick = openGoalSetting;
+    var talkCard = document.getElementById("talkCard"); if(talkCard) talkCard.onclick = openTalk;
     document.getElementById("checkinBtn").onclick = function(){ if(!state.checkedInToday) openCheckin(); };
     var setGoalBtn = document.getElementById("setGoalBtn"); if(setGoalBtn) setGoalBtn.onclick = openGoalSetting;
     document.getElementById("practiceCheckinBtn").onclick = openPracticeCheckin;
@@ -1808,10 +1985,10 @@
   // If a goal was set beforehand (state.pendingGoal), an extra "goal" step is inserted right
   // after session length so the reflection happens while the session's still fresh.
   function openPracticeCheckin(){
-    var steps = ["length"];
+    var steps = ["length","focus"];
     if(state.pendingGoal) steps.push("goal");
     steps = steps.concat(["rpe","recovery","soreness","note"]);
-    state.practiceCheckin = { step:1, steps:steps, duration:60, sessionType:null, rpe:null, recovery:null, soreness:null, note:"", goalRating:null, goalNote:"" };
+    state.practiceCheckin = { step:1, steps:steps, duration:60, sessionType:null, focusTags:[], rpe:null, recovery:null, soreness:null, note:"", goalRating:null, goalNote:"" };
     renderPracticeCheckinScreen();
   }
   function closePracticeCheckin(){ var b=document.getElementById("practiceCheckinScreen"); if(b) b.remove(); }
@@ -1866,6 +2043,18 @@
         '<div class="chip-section"><div class="chip-prompt">Session type (optional)</div><div class="chip-row">'+typeChips+'</div></div>' +
       '</div>';
       footer = '<div class="modal-actions"><button class="btn-primary" id="nextPractice" style="flex:1;">Next</button></div>';
+    } else if(stepType === "focus"){
+      var focusChips = TRAINING_FOCUS_TAGS.map(function(t){
+        var sel = pc.focusTags.indexOf(t) !== -1;
+        return '<button class="chip '+(sel?"selected":"")+'" data-focus="'+t+'">'+t+'</button>';
+      }).join("");
+      body += '<div class="q-body-rich">' +
+        '<div class="q-topline"><div class="plabel">'+practiceIconSvg("goal")+' Training focus</div></div>' +
+        '<div class="q-text-rich">What did you actually work on today?</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin:-14px 0 6px;">Optional — pick as many as fit</div>' +
+        '<div class="chip-row" style="margin-top:10px;">'+focusChips+'</div>' +
+      '</div>';
+      footer = '<div class="modal-actions"><button class="btn-secondary" id="backPractice">Back</button><button class="btn-primary" id="nextPractice" style="flex:1;">Next</button></div>';
     } else if(stepType === "goal"){
       var goal = state.pendingGoal;
       var ratingBtns = GOAL_REFLECT_LABELS.map(function(lbl, idx){
@@ -1920,6 +2109,17 @@
         b.onclick = function(){ var t=b.getAttribute("data-type"); pc.sessionType = (pc.sessionType===t?null:t); renderPracticeCheckinScreen(); };
       });
       document.getElementById("nextPractice").onclick = function(){ pc.step++; renderPracticeCheckinScreen(); };
+    } else if(stepType === "focus"){
+      screen.querySelectorAll("[data-focus]").forEach(function(b){
+        b.onclick = function(){
+          var t = b.getAttribute("data-focus");
+          var idx = pc.focusTags.indexOf(t);
+          if(idx === -1) pc.focusTags.push(t); else pc.focusTags.splice(idx,1);
+          renderPracticeCheckinScreen();
+        };
+      });
+      document.getElementById("backPractice").onclick = function(){ pc.step--; renderPracticeCheckinScreen(); };
+      document.getElementById("nextPractice").onclick = function(){ pc.step++; renderPracticeCheckinScreen(); };
     } else if(stepType === "goal"){
       screen.querySelectorAll(".emoji-btn").forEach(function(b){
         b.onclick=function(){ pc.goalRating=parseInt(b.getAttribute("data-val"),10); renderPracticeCheckinScreen(); };
@@ -1955,7 +2155,7 @@
     var entry = {
       ts: Date.now(),
       duration: pc.duration, rpe: pc.rpe, recovery: pc.recovery, soreness: pc.soreness,
-      load: load, sessionType: pc.sessionType, note: pc.note
+      load: load, sessionType: pc.sessionType, focusTags: pc.focusTags || [], note: pc.note
     };
     if(pc.steps.indexOf("goal") !== -1 && state.pendingGoal){
       entry.goal = { text: state.pendingGoal.text, type: state.pendingGoal.type, rating: pc.goalRating, note: pc.goalNote };
@@ -1970,7 +2170,7 @@
     showToast(msg, 4200);
   }
 
-  document.querySelectorAll(".tabbar button").forEach(function(b){ b.onclick=function(){ state.tab=b.getAttribute("data-tab"); state.detailPillar=null; state.showInsights=false; state.showPracticeLog=false; render(); }; });
+  document.querySelectorAll(".tabbar button").forEach(function(b){ b.onclick=function(){ state.tab=b.getAttribute("data-tab"); state.detailPillar=null; state.showInsights=false; state.showPracticeLog=false; state.showTalk=false; render(); }; });
 
   function updateStatusClock(){
     var el = document.getElementById("statusClock");
