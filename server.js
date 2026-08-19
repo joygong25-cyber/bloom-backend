@@ -79,6 +79,64 @@ Rules:
 - Output ONLY valid JSON, nothing else, no markdown fences, no commentary:
 {"question":"<short second-person question, or empty string if skip>","chips":["...", "..."],"skip":true|false}`;
 
+// ---- "Talk to Bloom" — an open-ended, free-text conversation, unlike the structured
+// /api/insights and /api/followup endpoints above. Because it's open-ended and aimed at
+// teenagers discussing wellbeing/stress, the system prompt below is deliberately strict
+// about scope and about never handling a real crisis disclosure by itself — see the rules
+// section. Every response is flagged with a "concern" boolean so the frontend can surface
+// real crisis resources immediately, on top of whatever Claude says.
+const TALK_SYSTEM_PROMPT = `You are "Talk to Bloom," a supportive conversational feature inside Bloom, a teen athlete wellbeing check-in app grounded in athlete-burnout research. A teenage student-athlete (roughly 13-19) is describing something in their own words and wants a thoughtful, personalized response — not a form to fill out.
+
+You may be given their recent check-in scores (Energy, Stress Balance, Sleep, Motivation, each 0-100) for context. Use them only if actually relevant to what they said, to sound like you're genuinely listening — never to make clinical claims from them.
+
+SCOPE — stay in this lane:
+- Athletic wellbeing: burnout, training stress, motivation, sleep, recovery, balancing sport with school, team/coach dynamics, performance pressure, goal-setting, and everyday feelings connected to being a student-athlete.
+- If asked something clearly outside this (homework help, general trivia, coding, anything unrelated to their wellbeing as an athlete), briefly say that's outside what this feature is for and redirect back to what you can actually help with — don't coldly refuse, but don't answer off-topic requests either.
+- Ground guidance in real research where it fits naturally (Athlete Burnout Questionnaire, Self-Determination Theory, sleep science, Goal-Setting Theory) the way a knowledgeable, warm coach would — not with academic citations, and not forced into every reply.
+
+ABSOLUTE RULES:
+- You are not a therapist, doctor, or counselor, and must never imply otherwise. Never diagnose. Never give medical, psychiatric, or clinical advice.
+- If ANYTHING in the message suggests the person may be in real distress — self-harm, suicidal thoughts, abuse, disordered eating, or any crisis — do NOT try to handle it yourself, do NOT ask probing/investigative questions, and do NOT just continue the conversation as normal. Respond with warmth and directness: acknowledge what they shared in one sentence, and clearly encourage them to reach out to a trusted adult, a school counselor, or a crisis line right now. Set "concern" to true whenever you do this — err on the side of flagging it if you're at all unsure.
+- Never encourage or normalize disordered eating, training or competing through real injury/pain, or ignoring a coach/parent/doctor's actual guidance.
+- Keep responses conversational but concise — 2-5 sentences typically, not an essay.
+- Never use emoji.
+- Tone: warm, direct, like a smart older teammate who happens to know the research — never preachy, never a generic pep-talk ("you've got this!"), never repeats itself.
+
+Output ONLY valid JSON, nothing else, no markdown fences, no commentary:
+{"reply":"<your response, plain text, 2-5 sentences typically>","concern":true|false}`;
+
+function buildTalkUserMessage(payload) {
+  var contextLine = "";
+  if (payload.recentContext && typeof payload.recentContext === "object") {
+    contextLine = `Their most recent check-in, for context — use only if relevant: ${JSON.stringify(payload.recentContext)}\n\n`;
+  }
+  var historyText = "";
+  if (Array.isArray(payload.history) && payload.history.length) {
+    historyText =
+      "Conversation so far (oldest first):\n" +
+      payload.history
+        .slice(-8)
+        .map((m) => (m.role === "user" ? "Athlete: " : "Bloom: ") + String(m.text || "").slice(0, 600))
+        .join("\n") +
+      "\n\n";
+  }
+  return (
+    contextLine +
+    historyText +
+    `Athlete's new message: "${String(payload.message).slice(0, 2000)}"\n\n` +
+    `Respond with the JSON object described in your instructions — nothing else.`
+  );
+}
+
+async function callTalk(payload) {
+  const parsed = await callClaudeAPI(TALK_SYSTEM_PROMPT, buildTalkUserMessage(payload), 500);
+  if (typeof parsed.reply !== "string") {
+    throw new Error("Claude's response was valid JSON but not in the expected shape.");
+  }
+  parsed.concern = !!parsed.concern;
+  return parsed;
+}
+
 function buildUserMessage(payload) {
   return (
     `Here is the user's last ${payload.history.length} check-ins (oldest first). ` +
@@ -167,6 +225,100 @@ async function callFollowup(payload) {
   return parsed;
 }
 
+// ---- Bloom Together: friend streaks + encouragement ------------------------------------
+// Deliberately minimal and low-risk for a minors-facing social feature:
+//   - No real names/accounts — just a self-chosen nickname, matching the rest of the app.
+//   - No freeform messages between users. Encouragement is always ONE of a fixed, curated
+//     set of supportive phrases — never arbitrary text — because freeform messaging between
+//     minors is a real harassment vector that the Talk-to-Bloom guardrails don't cover at
+//     all (those guardrails only apply to the user-to-AI conversation).
+//   - This server never receives pillar scores for this feature — only check-in *dates* — so
+//     it's structurally impossible for one friend to see another's actual energy/stress/
+//     sleep/motivation numbers, not just a UI choice.
+// Persisted to a JSON file rather than kept purely in memory: Render's free tier spins the
+// process down after ~15 minutes idle, and pure in-memory state would be wiped on nearly
+// every wake-up. A file survives that (though not necessarily a fresh redeploy, depending on
+// Render's disk behavior). This is a fine MVP store for a friend group testing it — swap for
+// a real hosted database before this needs to support more than that.
+const SOCIAL_FILE = path.join(__dirname, "social-data.json");
+function loadSocial() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(SOCIAL_FILE, "utf8"));
+    if (parsed && typeof parsed === "object" && parsed.members) return parsed;
+  } catch (e) { /* file missing or corrupt — start fresh */ }
+  return { members: {} }; // members: { id: { nickname, inviteCode, checkins: [dateKey,...], friends: [id,...], inbox: [{from,phrase,ts}] } }
+}
+function saveSocial() {
+  try { fs.writeFileSync(SOCIAL_FILE, JSON.stringify(social)); }
+  catch (e) { console.error("Failed to save social-data.json:", e.message); }
+}
+let social = loadSocial();
+
+const ID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous-looking characters
+function randomCode(len) {
+  let out = "";
+  for (let i = 0; i < len; i++) out += ID_CHARS[Math.floor(Math.random() * ID_CHARS.length)];
+  return out;
+}
+function findMemberByInviteCode(code) {
+  return Object.keys(social.members).find((id) => social.members[id].inviteCode === code) || null;
+}
+
+const ENCOURAGEMENT_PHRASES = [
+  "Proud of you for showing up today.",
+  "You've got this, one day at a time.",
+  "Just checking in to say I'm rooting for you.",
+  "Rest is part of the work too — you're doing fine.",
+  "Keep going, your consistency is paying off.",
+  "Sending you good energy for today.",
+  "You don't have to be perfect, just present.",
+  "Thinking of you, hope today feels a little lighter.",
+  "Locked in together. Let's keep it going.",
+  "No pressure, just a reminder that you're not doing this alone.",
+];
+
+function parseDateKey(k) {
+  const parts = String(k).split("-").map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return null;
+  // The client sends "YYYY-M-D" with a 1-indexed month (JS getMonth()+1) — Date.UTC wants
+  // 0-indexed, so subtract 1 here or every date after a month boundary parses one day off.
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12)); // noon UTC sidesteps DST edge cases
+}
+// Longest run of consecutive calendar days (most recent first) where BOTH members logged a
+// check-in — mirrors the personal streak's "miss a day and it resets" logic, but as its own
+// separate, opt-in social number. A missed day here never touches either person's own Buddy
+// evolution or personal streak, which are computed entirely independently of this file.
+function mutualStreak(memberA, memberB) {
+  if (!memberA || !memberB) return 0;
+  const setB = new Set(memberB.checkins || []);
+  const shared = (memberA.checkins || [])
+    .filter((k) => setB.has(k))
+    .map(parseDateKey)
+    .filter(Boolean)
+    .sort((a, b) => b - a);
+  if (!shared.length) return 0;
+  const now = new Date();
+  now.setUTCHours(12, 0, 0, 0);
+  const oneDay = 86400000;
+  if (Math.abs(now - shared[0]) > oneDay * 1.5) return 0; // most recent shared day isn't today/yesterday — streak's gone cold
+  let streak = 1;
+  for (let i = 1; i < shared.length; i++) {
+    if (Math.abs(shared[i - 1] - shared[i] - oneDay) < 3600000) streak++;
+    else break;
+  }
+  return streak;
+}
+function publicMember(id) {
+  const m = social.members[id];
+  if (!m) return null;
+  const friends = (m.friends || []).map((fid) => {
+    const f = social.members[fid];
+    if (!f) return null;
+    return { id: fid, nickname: f.nickname, streak: mutualStreak(m, f) };
+  }).filter(Boolean);
+  return { id, nickname: m.nickname, inviteCode: m.inviteCode, friends, inbox: (m.inbox || []).slice(-15).reverse() };
+}
+
 function send(res, status, body) {
   res.writeHead(status, {
     "content-type": "application/json",
@@ -240,7 +392,115 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  send(res, 404, { error: "Not found. Try GET /health, POST /api/insights, or POST /api/followup." });
+  if (req.method === "POST" && req.url === "/api/talk") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", async () => {
+      let payload;
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch (e) {
+        send(res, 400, { error: "Invalid JSON body." });
+        return;
+      }
+      if (typeof payload.message !== "string" || !payload.message.trim()) {
+        send(res, 400, { error: "Missing non-empty 'message' string in request body." });
+        return;
+      }
+      try {
+        const result = await callTalk(payload);
+        send(res, 200, result);
+      } catch (e) {
+        console.error(e);
+        send(res, e.code === "NO_KEY" ? 500 : 502, { error: e.message, code: e.code || "UNKNOWN" });
+      }
+    });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/social/register") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      let payload;
+      try { payload = JSON.parse(body || "{}"); } catch (e) { send(res, 400, { error: "Invalid JSON body." }); return; }
+      const nickname = (payload.nickname || "").toString().trim().slice(0, 20);
+      if (!nickname) { send(res, 400, { error: "Missing non-empty 'nickname'." }); return; }
+      let id;
+      do { id = randomCode(8); } while (social.members[id]);
+      let inviteCode;
+      do { inviteCode = randomCode(6); } while (findMemberByInviteCode(inviteCode));
+      social.members[id] = { nickname, inviteCode, checkins: [], friends: [], inbox: [] };
+      saveSocial();
+      send(res, 200, publicMember(id));
+    });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/social/connect") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      let payload;
+      try { payload = JSON.parse(body || "{}"); } catch (e) { send(res, 400, { error: "Invalid JSON body." }); return; }
+      const memberId = payload.memberId, inviteCode = (payload.inviteCode || "").toString().trim().toUpperCase();
+      if (!social.members[memberId]) { send(res, 404, { error: "Unknown memberId." }); return; }
+      const friendId = findMemberByInviteCode(inviteCode);
+      if (!friendId) { send(res, 404, { error: "No one has that invite code." }); return; }
+      if (friendId === memberId) { send(res, 400, { error: "That's your own invite code." }); return; }
+      const me = social.members[memberId], friend = social.members[friendId];
+      if (me.friends.indexOf(friendId) === -1) me.friends.push(friendId);
+      if (friend.friends.indexOf(memberId) === -1) friend.friends.push(memberId);
+      saveSocial();
+      send(res, 200, publicMember(memberId));
+    });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/social/checkin") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      let payload;
+      try { payload = JSON.parse(body || "{}"); } catch (e) { send(res, 400, { error: "Invalid JSON body." }); return; }
+      const member = social.members[payload.memberId];
+      if (!member) { send(res, 404, { error: "Unknown memberId." }); return; }
+      const dateKey = (payload.dateKey || "").toString();
+      if (!parseDateKey(dateKey)) { send(res, 400, { error: "Missing/invalid 'dateKey' (expected YYYY-M-D)." }); return; }
+      if (member.checkins.indexOf(dateKey) === -1) member.checkins.push(dateKey);
+      saveSocial();
+      send(res, 200, { ok: true });
+    });
+    return;
+  }
+
+  if (req.method === "GET" && req.url.indexOf("/api/social/state") === 0) {
+    const memberId = new URL(req.url, "http://x").searchParams.get("memberId");
+    const view = publicMember(memberId);
+    if (!view) { send(res, 404, { error: "Unknown memberId." }); return; }
+    send(res, 200, view);
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/social/encourage") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      let payload;
+      try { payload = JSON.parse(body || "{}"); } catch (e) { send(res, 400, { error: "Invalid JSON body." }); return; }
+      const from = social.members[payload.fromId], to = social.members[payload.toId];
+      if (!from || !to) { send(res, 404, { error: "Unknown memberId." }); return; }
+      if (from.friends.indexOf(payload.toId) === -1) { send(res, 400, { error: "You can only encourage a friend." }); return; }
+      const phrase = ENCOURAGEMENT_PHRASES[Math.floor(Math.random() * ENCOURAGEMENT_PHRASES.length)];
+      to.inbox.push({ from: from.nickname, phrase: phrase, ts: Date.now() });
+      to.inbox = to.inbox.slice(-20);
+      saveSocial();
+      send(res, 200, { phrase: phrase });
+    });
+    return;
+  }
+
+  send(res, 404, { error: "Not found. Try GET /health, POST /api/insights, POST /api/followup, POST /api/talk, or the /api/social/* endpoints." });
 });
 
 server.listen(PORT, () => {
@@ -248,5 +508,5 @@ server.listen(PORT, () => {
   console.log(`  Model: ${MODEL}`);
   console.log(`  API key configured: ${!!API_KEY}`);
   console.log(`  Try: curl http://localhost:${PORT}/health`);
-  console.log(`  Endpoints: POST /api/insights, POST /api/followup`);
+  console.log(`  Endpoints: POST /api/insights, POST /api/followup, POST /api/talk, POST /api/social/register, POST /api/social/connect, POST /api/social/checkin, GET /api/social/state, POST /api/social/encourage`);
 });

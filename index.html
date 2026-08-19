@@ -232,6 +232,19 @@
   .badge-group:first-of-type { margin-top: 10px; }
   .badge-group-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
 
+  /* Bloom Together */
+  .friend-row { display:flex; align-items:center; gap:11px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+  .friend-row:last-child { border-bottom: none; }
+  .friend-row .fgarden { color: var(--accent); flex-shrink:0; }
+  .friend-row .ftxt { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+  .friend-row .fname { font-size: 13px; font-weight: 800; color: var(--text-primary); }
+  .friend-row .fstreak { font-size: 11px; color: var(--muted); font-weight:600; display:flex; align-items:center; gap:4px; }
+  .encourage-btn { flex-shrink:0; border:1px solid var(--border); background: var(--surface-2); color: var(--accent); font-weight:700; font-size: 11px; padding: 7px 11px; border-radius: 10px; cursor:pointer; }
+  .encourage-item { font-size: 12px; color: var(--text-primary); padding: 6px 0; border-bottom: 1px solid var(--border); display:flex; flex-wrap:wrap; gap:4px; align-items:baseline; }
+  .encourage-item:last-child { border-bottom: none; }
+  .encourage-item .etime { font-size: 10px; color: var(--muted); margin-left: auto; }
+  .invite-code { font-size: 22px; font-weight: 800; letter-spacing: 0.12em; color: var(--accent); text-align:center; background: var(--accent-soft); border-radius: 12px; padding: 10px; margin-top: 8px; }
+
   /* Buddy growth timeline */
   .growth-row { display:grid; grid-template-columns: repeat(4,1fr); justify-content:space-between; gap: 6px; margin-top: 10px; }
   .growth-stage { display:flex; flex-direction:column; align-items:center; gap:5px; padding: 8px 2px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
@@ -330,6 +343,7 @@
   <main id="view-insights" hidden></main>
   <main id="view-practicelog" hidden></main>
   <main id="view-talk" hidden></main>
+  <main id="view-social" hidden></main>
 
   <nav class="tabbar" id="tabbar">
     <button data-tab="home" class="active"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><path d="M4 11.5 12 4l8 7.5M6 10v9h12v-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Home</button>
@@ -784,7 +798,10 @@
         // Only the count + date (+ a one-time "ever used" flag for the Talk to Bloom badge)
         // persist for Talk to Bloom — never the actual message text, which is intentionally
         // kept in memory only (see state.talk above).
-        talkQuota: { dayKey: state.talk.dayKey, countToday: state.talk.countToday, everUsed: state.talk.everUsed }
+        talkQuota: { dayKey: state.talk.dayKey, countToday: state.talk.countToday, everUsed: state.talk.everUsed },
+        // Just the identifiers for Bloom Together — never friends/inbox, which are always
+        // re-fetched live from the server so they can't go stale.
+        socialId: { memberId: state.social.memberId, nickname: state.social.nickname, inviteCode: state.social.inviteCode }
       }));
     } catch(e) { /* storage unavailable/full — app still works for this session */ }
   }
@@ -798,13 +815,17 @@
   }
 
   var state = {
-    tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false, showTalk: false,
+    tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false, showTalk: false, showSocial: false,
     insightsSubTab: "patterns", insightsData: null, actionIdx: {energy:0, stress:0, sleep:0, motivation:0},
     // Talk to Bloom lives only in memory, not localStorage — it's the one place someone
     // might type something quite personal, so it doesn't stick around after a refresh.
     // The daily count DOES persist (via settings-style merge below) purely as a lightweight,
     // disclosed cost/abuse guard, reset automatically whenever the local date changes.
     talk: { messages: [], sending: false, dayKey: null, countToday: 0, everUsed: false },
+    // Bloom Together: only memberId/nickname/inviteCode persist locally (just an identifier,
+    // nothing sensitive) — friends/inbox are always re-fetched live from the server, which is
+    // the source of truth, so this never goes stale or drifts across devices.
+    social: { memberId: null, nickname: null, inviteCode: null, friends: [], inbox: [], loading: false, error: null, joinInput: "", nicknameInput: "" },
     points: DEMO_MODE ? 240 : 0,
     streak: DEMO_MODE ? 6 : 0,
     longestStreak: DEMO_MODE ? 34 : 0,
@@ -834,6 +855,7 @@
       if(saved.settings && typeof saved.settings === "object") state.settings = Object.assign({}, state.settings, saved.settings);
       if(saved.talkQuota && typeof saved.talkQuota === "object"){ state.talk.dayKey = saved.talkQuota.dayKey || null; state.talk.countToday = saved.talkQuota.countToday || 0; state.talk.everUsed = !!saved.talkQuota.everUsed; }
       if(saved.pendingGoal && typeof saved.pendingGoal === "object") state.pendingGoal = saved.pendingGoal;
+      if(saved.socialId && typeof saved.socialId === "object"){ state.social.memberId = saved.socialId.memberId || null; state.social.nickname = saved.socialId.nickname || null; state.social.inviteCode = saved.socialId.inviteCode || null; }
     }
   }
   // Always recompute from real history rather than trusting a persisted boolean — otherwise
@@ -1114,21 +1136,24 @@
 
   function render(){
     persist();
-    document.querySelectorAll(".tabbar button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-tab")===state.tab && !state.detailPillar && !state.showInsights && !state.showPracticeLog && !state.showTalk); });
+    document.querySelectorAll(".tabbar button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-tab")===state.tab && !state.detailPillar && !state.showInsights && !state.showPracticeLog && !state.showTalk && !state.showSocial); });
     var showDetail = !!state.detailPillar;
     var showInsights = !!state.showInsights;
     var showPracticeLog = !!state.showPracticeLog;
     var showTalk = !!state.showTalk;
-    ["home","trends","journal","pet","settings"].forEach(function(t){ document.getElementById("view-"+t).hidden = showDetail || showInsights || showPracticeLog || showTalk || (t!==state.tab); });
+    var showSocial = !!state.showSocial;
+    ["home","trends","journal","pet","settings"].forEach(function(t){ document.getElementById("view-"+t).hidden = showDetail || showInsights || showPracticeLog || showTalk || showSocial || (t!==state.tab); });
     document.getElementById("view-detail").hidden = !showDetail;
     document.getElementById("view-insights").hidden = !showInsights;
     document.getElementById("view-practicelog").hidden = !showPracticeLog;
     document.getElementById("view-talk").hidden = !showTalk;
+    document.getElementById("view-social").hidden = !showSocial;
 
     if(showDetail){ renderDetail(state.detailPillar); return; }
     if(showInsights){ renderInsights(); return; }
     if(showPracticeLog){ renderPracticeLog(); return; }
     if(showTalk){ renderTalkView(); return; }
+    if(showSocial){ renderSocialView(); return; }
     if(state.tab==="home") renderHome();
     if(state.tab==="trends") renderTrends();
     if(state.tab==="journal") renderJournal();
@@ -1151,6 +1176,7 @@
   var AI_FOLLOWUP_URL = "https://bloom-backend-rv0g.onrender.com/api/followup";
   var AI_TALK_URL = "https://bloom-backend-rv0g.onrender.com/api/talk";
   var TALK_DAILY_LIMIT = 25; // lightweight, disclosed cost/abuse guard — not a punishment, just a practical cap on a real paid API key
+  var SOCIAL_BASE_URL = "https://bloom-backend-rv0g.onrender.com/api/social";
 
   // ---------- Check-in "what's contributing?" follow-up, Claude-generated per answer ----------
   // Fired the moment an athlete picks a value for a pillar. Claude decides the question AND
@@ -1686,6 +1712,142 @@
     svgEl.addEventListener("mouseleave", hidePoint);
   }
 
+  // ---------- Bloom Together: friend streaks + encouragement ----------
+  // Server owns friends/streaks/inbox — see server.js for the full design rationale. This
+  // client never sends a pillar score for this feature, only check-in dates and, for
+  // encouragement, which friend to nudge — the server itself picks the phrase from a fixed
+  // list, so there is no freeform text channel between users anywhere in this feature.
+  function relTime(ts){
+    var mins = Math.round((Date.now()-ts)/60000);
+    if(mins < 1) return "just now";
+    if(mins < 60) return mins+"m ago";
+    var hrs = Math.round(mins/60);
+    if(hrs < 24) return hrs+"h ago";
+    return Math.round(hrs/24)+"d ago";
+  }
+  function gardenStageIdx(streak){ if(streak>=30) return 3; if(streak>=7) return 2; if(streak>=1) return 1; return 0; }
+  function gardenIconSvg(stage, size){
+    size = size || 22;
+    var body;
+    if(stage===0) body = '<circle cx="12" cy="16" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/>';
+    else if(stage===1) body = '<path d="M12 19V12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M12 13c0-2.3 1.8-3.3 3.6-3.3-0.3 2.4-1.6 3.6-3.6 3.3z" fill="currentColor" opacity="0.85"/>';
+    else if(stage===2) body = '<path d="M12 19V9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M12 13c0-2.2 1.8-3.1 3.5-3.1-0.3 2.3-1.6 3.4-3.5 3.1z" fill="currentColor" opacity="0.85"/><path d="M12 16c0-2.2-1.8-3.1-3.5-3.1 0.3 2.3 1.6 3.4 3.5 3.1z" fill="currentColor" opacity="0.85"/>';
+    else body = '<path d="M12 19V12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><circle cx="12" cy="7.2" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="15.3" cy="9.3" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="11.4" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8.7" cy="9.3" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="9.3" r="1.5" fill="currentColor"/>';
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;">'+body+'</svg>';
+  }
+  function flameIconSvg(size){
+    size = size || 13;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;"><path d="M12 3c1 3-3 4.2-3 7.3a3 3 0 0 0 6 0c0-1-0.4-1.9-0.9-2.5C15.8 8.4 17 10.3 17 12.5a5 5 0 0 1-10 0C7 8.3 10 6.9 12 3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  }
+  function openSocial(){ state.showSocial = true; render(); if(state.social.memberId) fetchSocialState(); }
+  function closeSocial(){ state.showSocial = false; render(); }
+  function fetchSocialState(){
+    if(!state.social.memberId) return;
+    state.social.loading = true; state.social.error = null;
+    fetch(SOCIAL_BASE_URL+"/state?memberId="+encodeURIComponent(state.social.memberId))
+      .then(function(r){ if(!r.ok) throw new Error("status "+r.status); return r.json(); })
+      .then(function(data){
+        state.social.friends = data.friends || [];
+        state.social.inbox = data.inbox || [];
+        state.social.nickname = data.nickname || state.social.nickname;
+        state.social.inviteCode = data.inviteCode || state.social.inviteCode;
+        state.social.loading = false;
+        render();
+      })
+      .catch(function(){ state.social.loading = false; state.social.error = "Couldn't reach Bloom Together right now — try again in a bit."; render(); });
+  }
+  function registerSocial(nickname){
+    nickname = (nickname||"").trim().slice(0,20);
+    if(!nickname || state.social.loading) return;
+    state.social.loading = true; state.social.error = null; render();
+    fetch(SOCIAL_BASE_URL+"/register", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({nickname: nickname}) })
+      .then(function(r){ if(!r.ok) throw new Error("status "+r.status); return r.json(); })
+      .then(function(data){
+        state.social.memberId = data.id; state.social.nickname = data.nickname; state.social.inviteCode = data.inviteCode;
+        state.social.friends = data.friends||[]; state.social.inbox = data.inbox||[]; state.social.loading = false;
+        if(state.checkedInToday) postSocialCheckin(); // backfill today so a fresh streak isn't a day behind
+        render();
+      })
+      .catch(function(){ state.social.loading = false; state.social.error = "Couldn't set up Bloom Together right now — try again in a bit."; render(); });
+  }
+  function connectSocial(inviteCode){
+    inviteCode = (inviteCode||"").trim();
+    if(!inviteCode || !state.social.memberId || state.social.loading) return;
+    state.social.loading = true; state.social.error = null; render();
+    fetch(SOCIAL_BASE_URL+"/connect", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({memberId: state.social.memberId, inviteCode: inviteCode}) })
+      .then(function(r){ if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||"Couldn't connect."); }); return r.json(); })
+      .then(function(data){
+        state.social.friends = data.friends||[]; state.social.inbox = data.inbox||[]; state.social.joinInput = ""; state.social.loading = false;
+        showToast("Connected — say hi and start a streak together.", 3200);
+        render();
+      })
+      .catch(function(e){ state.social.loading = false; state.social.error = e.message; render(); });
+  }
+  function postSocialCheckin(){
+    if(!state.social.memberId) return;
+    fetch(SOCIAL_BASE_URL+"/checkin", {
+      method:"POST", headers:{"content-type":"application/json"},
+      body: JSON.stringify({ memberId: state.social.memberId, dateKey: localDayKey(Date.now()) })
+    }).catch(function(){ /* silent — the real personal check-in already succeeded regardless */ });
+  }
+  function sendEncouragement(toId){
+    if(!state.social.memberId) return;
+    fetch(SOCIAL_BASE_URL+"/encourage", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({ fromId: state.social.memberId, toId: toId }) })
+      .then(function(r){ return r.json(); })
+      .then(function(data){ showToast(data.phrase ? ('Sent: "'+data.phrase+'"') : "Sent.", 3600); })
+      .catch(function(){ showToast("Couldn't send that right now — try again in a bit.", 3000); });
+  }
+  function renderSocialView(){
+    var el = document.getElementById("view-social");
+    var s = state.social;
+    var errorHtml = s.error ? '<p style="color:var(--critical);font-size:12px;margin-top:8px;">'+s.error+'</p>' : "";
+
+    if(!s.memberId){
+      el.innerHTML =
+        '<div class="back-row" id="socialBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">Bloom Together</span></div>' +
+        '<div class="card"><h3>Grow a streak with a friend</h3>' +
+          '<p>Connect with a friend and build a streak together — just the fact that you both showed up, never your actual scores. No one, ever, can see your energy, stress, sleep, or motivation numbers through this.</p>' +
+          '<p style="margin-top:8px;">Pick a nickname to get started (no real name needed).</p>' +
+          '<input type="text" id="socialNickInput" placeholder="Your nickname" maxlength="20" style="margin-top:8px;">' +
+          '<button class="btn-primary" id="socialStartBtn" style="width:100%;margin-top:10px;" '+(s.loading?"disabled":"")+'>'+(s.loading?"Setting up…":"Get started")+'</button>' +
+          errorHtml +
+        '</div>';
+      var backBtn = document.getElementById("socialBack"); if(backBtn) backBtn.onclick = closeSocial;
+      var startBtn = document.getElementById("socialStartBtn");
+      if(startBtn) startBtn.onclick = function(){ registerSocial(document.getElementById("socialNickInput").value); };
+      return;
+    }
+
+    var inboxHtml = s.inbox.length ? s.inbox.map(function(m){
+      return '<div class="encourage-item"><strong>'+escapeHtml(m.from)+'</strong> — "'+escapeHtml(m.phrase)+'"<span class="etime">'+relTime(m.ts)+'</span></div>';
+    }).join("") : '';
+
+    var friendsHtml = s.friends.length ? s.friends.map(function(f){
+      var stage = gardenStageIdx(f.streak);
+      return '<div class="friend-row">' +
+        '<span class="fgarden">'+gardenIconSvg(stage,24)+'</span>' +
+        '<div class="ftxt"><span class="fname">'+escapeHtml(f.nickname)+'</span><span class="fstreak">'+flameIconSvg(12)+' '+f.streak+' day'+(f.streak===1?"":"s")+' together</span></div>' +
+        '<button class="encourage-btn" data-encourage="'+f.id+'">Encourage</button>' +
+      '</div>';
+    }).join("") : '<p>No friends connected yet — share your code below.</p>';
+
+    el.innerHTML =
+      '<div class="back-row" id="socialBack"><span class="arrow">'+chevronLeftIconSvg(18)+'</span><span class="btitle">Bloom Together</span></div>' +
+      (inboxHtml ? '<div class="card"><h3>Encouragement</h3>'+inboxHtml+'</div>' : '') +
+      '<div class="card"><h3>Friend streaks</h3>' + friendsHtml + '</div>' +
+      '<div class="card"><h3>Your code</h3><p>You\'re "'+escapeHtml(s.nickname)+'". Share this code so a friend can connect with you — it only lets them see that you checked in, never your scores.</p>' +
+        '<div class="invite-code">'+escapeHtml(s.inviteCode||"")+'</div>' +
+        '<input type="text" id="socialJoinInput" placeholder="Enter a friend\'s code" maxlength="6" value="'+escapeHtml(s.joinInput||"")+'" style="margin-top:10px;">' +
+        '<button class="btn-secondary" id="socialConnectBtn" style="width:100%;margin-top:8px;" '+(s.loading?"disabled":"")+'>'+(s.loading?"Connecting…":"Connect")+'</button>' +
+        errorHtml +
+      '</div>';
+
+    var backBtn2 = document.getElementById("socialBack"); if(backBtn2) backBtn2.onclick = closeSocial;
+    var connectBtn = document.getElementById("socialConnectBtn");
+    if(connectBtn) connectBtn.onclick = function(){ connectSocial(document.getElementById("socialJoinInput").value); };
+    el.querySelectorAll("[data-encourage]").forEach(function(b){ b.onclick = function(){ sendEncouragement(b.getAttribute("data-encourage")); }; });
+  }
+
   // ---------- Journal ----------
   function renderJournal(){
     var el = document.getElementById("view-journal");
@@ -1749,11 +1911,13 @@
         '<div class="xp-track" style="margin-top:10px;"><div class="xp-fill" style="width:'+xp+'%"></div></div>' +
         '<div style="font-size:10px;color:var(--muted);margin-top:4px;">'+xp+' / 100 XP to level '+(lvl+1)+'</div>' +
       '</div>' +
+      '<div class="ai-card" id="socialCard"><span class="ai-ic">'+buddyIconSvg(19)+'</span><div><div class="ai-title">Bloom Together</div><div class="ai-sub">Grow a streak with a friend — no scores shared, ever</div></div></div>' +
       '<div class="card"><h3>Growth</h3><p>'+state.pet.name+' evolves as your <strong style="color:var(--text-primary);">longest-ever streak</strong> grows — never based on today alone, so a missed day never undoes progress. Stages are fixed and shown here up front, not random drops.</p><div class="growth-row">'+growthStages+'</div></div>' +
       '<div class="card"><h3>Name</h3><input type="text" id="petNameInput" value="'+state.pet.name+'" maxlength="14"></div>' +
       '<div class="card"><h3>Decorate</h3><p>Color</p><div class="swatch-row">'+colorSwatches+'</div><p style="margin-top:12px;">Accessories — unlock with longer streaks</p><div class="acc-row">'+accBtns+'</div></div>' +
       '<div class="card"><h3>Badges — '+earnedBadgeCount+' / '+BADGES.length+' earned</h3><p>Different goals, different badges — check-ins, training logged, journaling, coming back after a miss, and Talk to Bloom all have their own.</p>'+badgeGroupsHtml+'</div>';
 
+    var socialCard = document.getElementById("socialCard"); if(socialCard) socialCard.onclick = openSocial;
     document.getElementById("petNameInput").onchange = function(e){ state.pet.name = e.target.value || "Buddy"; render(); };
     el.querySelectorAll(".swatch[data-color]").forEach(function(s){ s.onclick=function(){ state.pet.color=s.getAttribute("data-color"); render(); }; });
     el.querySelectorAll(".acc-btn").forEach(function(b){ b.onclick=function(){ if(b.disabled) return; state.pet.accessory=b.getAttribute("data-acc"); render(); }; });
@@ -1995,6 +2159,7 @@
     if(prevEntry && daysBetweenLocal(prevEntry.ts, now) === 1){ state.streak += 1; } else { state.streak = 1; }
     state.checkedInToday=true; if(state.streak>state.longestStreak) state.longestStreak=state.streak;
     var earned=10; if(state.streak>1) earned+=5; state.points+=earned;
+    postSocialCheckin(); // fire-and-forget — only sends today's date, never any pillar score
     closeCheckin();
     var stageAfter = petStage();
     var milestoneMsg="";
@@ -2263,7 +2428,7 @@
     showToast(msg, 4200);
   }
 
-  document.querySelectorAll(".tabbar button").forEach(function(b){ b.onclick=function(){ state.tab=b.getAttribute("data-tab"); state.detailPillar=null; state.showInsights=false; state.showPracticeLog=false; state.showTalk=false; render(); }; });
+  document.querySelectorAll(".tabbar button").forEach(function(b){ b.onclick=function(){ state.tab=b.getAttribute("data-tab"); state.detailPillar=null; state.showInsights=false; state.showPracticeLog=false; state.showTalk=false; state.showSocial=false; render(); }; });
 
   render();
 })();
