@@ -64,12 +64,16 @@
     box-shadow: 0 30px 70px rgba(0,0,0,0.6), 0 0 0 9px #15181d, 0 0 0 10px rgba(255,255,255,0.05);
     overflow: hidden; display: flex; flex-direction: column; position: relative;
   }
-  .statusbar { padding: 14px 22px 2px; display:flex; justify-content:space-between; font-size:12px; color: var(--muted); font-weight:600; }
-  .app-header { padding: 6px 20px 4px; }
-  .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .app-header { padding: 18px 20px 8px; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .app-header .brand-mark { display:flex; color: var(--accent); }
+  .app-header .brand-word { font-size: 17px; font-weight: 800; letter-spacing: 0.01em; color: var(--text-primary); }
 
   main { flex: 1; overflow-y: auto; padding: 4px 20px 18px; }
   main::-webkit-scrollbar { width: 0; }
+  /* Guard against id-specific display rules (e.g. #view-talk's display:flex) beating the
+     browser's own [hidden]{display:none} rule on specificity — without this, a hidden view
+     can still occupy flex space in .phone's column layout and squeeze the active view. */
+  main[hidden] { display: none !important; }
 
   .hero { display:flex; flex-direction:column; align-items:center; padding: 8px 0 2px; }
   .ring-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
@@ -214,15 +218,23 @@
   .acc-btn.selected { border-color: var(--accent); border-width: 2px; }
   .acc-btn.locked { opacity: 0.35; cursor: not-allowed; }
   .acc-btn .lock-badge { position:absolute; bottom:-5px; right:-5px; font-size: 9px; display:flex; align-items:center; gap:1px; background:var(--surface-1); border:1px solid var(--border); border-radius:7px; padding:1px 4px; color:var(--muted); font-weight:700; }
-  .badge-grid { display:grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 8px; }
-  .badge-item { display:flex; flex-direction:column; align-items:center; gap:4px; padding: 10px 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
-  .badge-item .bic { display:flex; }
-  .badge-item.locked { opacity: 0.3; }
-  .badge-item .blbl { font-size: 8.5px; color: var(--muted); font-weight:700; text-transform:uppercase; text-align:center; }
+  /* Whoop-style achievement cards: icon left, a flavorful earned name up top, the literal
+     criteria/progress as a small caption underneath — not just a locked/unlocked medal grid. */
+  .badge-grid { display:flex; flex-direction:column; gap: 8px; margin-top: 8px; }
+  .badge-item { display:flex; flex-direction:row; align-items:center; gap:11px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+  .badge-item .bic { display:flex; flex-shrink:0; }
+  .badge-item.locked { opacity: 0.45; }
+  .badge-item .btxt { display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .badge-item .btitle { font-size: 13px; font-weight: 800; color: var(--text-primary); }
+  .badge-item.locked .btitle { color: var(--muted); }
+  .badge-item .blbl { font-size: 10.5px; color: var(--muted); font-weight:600; }
+  .badge-group { margin-top: 14px; }
+  .badge-group:first-of-type { margin-top: 10px; }
+  .badge-group-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
 
   /* Buddy growth timeline */
-  .growth-row { display:flex; justify-content:space-between; gap: 6px; margin-top: 10px; }
-  .growth-stage { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; padding: 8px 2px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+  .growth-row { display:grid; grid-template-columns: repeat(4,1fr); justify-content:space-between; gap: 6px; margin-top: 10px; }
+  .growth-stage { display:flex; flex-direction:column; align-items:center; gap:5px; padding: 8px 2px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
   .growth-stage.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
   .growth-stage.locked .growth-avatar { opacity: 0.35; }
   .growth-stage .glbl { font-size: 8px; color: var(--muted); font-weight:700; text-transform:uppercase; text-align:center; letter-spacing:0.02em; }
@@ -304,8 +316,10 @@
 
 <div class="phone" id="phone">
   <div class="toast" id="toast"></div>
-  <div class="statusbar"><span id="statusClock">9:41</span><span>100%</span></div>
-  <div class="app-header"><div class="tag">Bloom · Burnout-risk pillars</div></div>
+  <div class="app-header">
+    <span class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" style="display:block;"><circle cx="12" cy="6.5" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="17.5" cy="12" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="17.5" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="12" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/></svg></span>
+    <span class="brand-word">Bloom</span>
+  </div>
 
   <main id="view-home"></main>
   <main id="view-trends" hidden></main>
@@ -551,10 +565,14 @@
   function accessoryIconSvg(id, size){
     size = size || 22;
     var shapes = {
+      bandana: '<path d="M3 10.5 Q12 3.5 21 10.5 L21 13 Q12 8.5 3 13 Z" fill="#ff9f5a" stroke="#e0793a" stroke-width="0.5" stroke-linejoin="round"/><path d="M19.5 11.5 L23 16 M21.3 11 L23.6 17.4" stroke="#e0793a" stroke-width="1.5" stroke-linecap="round"/>',
       bow: '<path d="M12 12 L3 6 L3 18 Z" fill="#ff8fa3"/><path d="M12 12 L21 6 L21 18 Z" fill="#ff8fa3"/><circle cx="12" cy="12" r="3" fill="#e85d75"/>',
-      crown: '<path d="M3 18h18l-1.6-8-4.4 4-3-7.5-3 7.5-4.4-4-1.6 8z" fill="#ffd166" stroke="#e0a412" stroke-width="0.6" stroke-linejoin="round"/>',
+      headband: '<path d="M2.5 11.5 Q12 2.5 21.5 11.5" fill="none" stroke="#4fd1c5" stroke-width="4" stroke-linecap="round"/>',
       glasses: '<g fill="none" stroke="#2c2a24" stroke-width="2"><circle cx="7" cy="12" r="4.6"/><circle cx="17" cy="12" r="4.6"/><path d="M11.4 12h1.2M2.2 10.6L4 12M21.8 10.6L20 12"/></g>',
-      cape: '<path d="M12 4 L20 20 L4 20 Z" fill="#a78bfa"/><circle cx="12" cy="5" r="2.2" fill="#7c5cff"/>'
+      medal: '<path d="M9 2 L12 9 L15 2" fill="none" stroke="#7c5cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15" r="6.6" fill="#ffd166" stroke="#e0a412" stroke-width="0.8"/><path d="M12 11.3l1.2 2.3 2.6 0.3-1.9 1.8 0.5 2.6-2.4-1.4-2.4 1.4 0.5-2.6-1.9-1.8 2.6-0.3z" fill="#fff" opacity="0.92"/>',
+      crown: '<path d="M3 18h18l-1.6-8-4.4 4-3-7.5-3 7.5-4.4-4-1.6 8z" fill="#ffd166" stroke="#e0a412" stroke-width="0.6" stroke-linejoin="round"/>',
+      cape: '<path d="M12 4 L20 20 L4 20 Z" fill="#a78bfa"/><circle cx="12" cy="5" r="2.2" fill="#7c5cff"/>',
+      halo: '<ellipse cx="12" cy="5" rx="7.2" ry="2.7" fill="#ffe27a" opacity="0.25"/><ellipse cx="12" cy="5" rx="7.2" ry="2.7" fill="none" stroke="#ffe27a" stroke-width="2"/>'
     };
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;">'+(shapes[id]||"")+'</svg>';
   }
@@ -572,19 +590,69 @@
   }
 
   var PET_COLORS = ["#ffb4a2","#ffd166","#8ecae6","#95d5b2","#c9b6e4","#f4978e"];
+  // 8 unlockable accessories (plus "none") spread across the same streak journey as the
+  // evolution stages below — early ones land quickly (day 3, day 5) for a fast first payoff,
+  // later ones space out to match the longer-horizon milestones.
   var ACCESSORIES = [
     {id:"none", ic:"—", unlockStreak:0},
+    {id:"bandana", ic:accessoryIconSvg("bandana"), unlockStreak:3},
     {id:"bow", ic:accessoryIconSvg("bow"), unlockStreak:5},
-    {id:"crown", ic:accessoryIconSvg("crown"), unlockStreak:10},
-    {id:"glasses", ic:accessoryIconSvg("glasses"), unlockStreak:20},
-    {id:"cape", ic:accessoryIconSvg("cape"), unlockStreak:35}
+    {id:"headband", ic:accessoryIconSvg("headband"), unlockStreak:8},
+    {id:"glasses", ic:accessoryIconSvg("glasses"), unlockStreak:10},
+    {id:"medal", ic:accessoryIconSvg("medal"), unlockStreak:15},
+    {id:"crown", ic:accessoryIconSvg("crown"), unlockStreak:20},
+    {id:"cape", ic:accessoryIconSvg("cape"), unlockStreak:35},
+    {id:"halo", ic:accessoryIconSvg("halo"), unlockStreak:66}
   ];
-  var BADGE_COLORS = { bronze:"#cd7f32", silver:"#9aa0a6", gold:"#ffd166", elite:"#7dd3d8" };
+  var BADGE_COLORS = { bronze:"#cd7f32", silver:"#9aa0a6", gold:"#ffd166", elite:"#7dd3d8", platinum:"#c9d6ff" };
+  // Badges are grouped by what they actually reward, not just one check-in-count ladder —
+  // each group's `test` reads directly off real state, so a badge can never be "un-earned"
+  // by a later miss (matching the app's never-punish-a-lapse philosophy). `progress` powers
+  // the locked-state caption in the Buddy screen.
+  function notesWrittenCount(){ return state.history.filter(function(h){ return h.note && h.note.trim().length>0; }).length; }
+  // "Did this athlete ever come back after missing a day?" — scanned from real check-in
+  // dates rather than tracked live, so it stays accurate even across sessions. Deliberately
+  // framed as something to earn, not something lost — a missed day never removes it once
+  // earned, and there's no penalty badge for missing in the first place.
+  function hasBounceBack(){
+    var days = state.history.map(function(h){ return Math.floor(new Date(h.ts).setHours(0,0,0,0)/DAY_MS); });
+    days.sort(function(a,b){ return a-b; });
+    var uniq = days.filter(function(d,i){ return i===0 || d!==days[i-1]; });
+    for(var i=1;i<uniq.length;i++){ if(uniq[i]-uniq[i-1] > 1) return true; }
+    return false;
+  }
+  // Personal-record style badge (Whoop's "best sleep / peak recovery / max strain" idea) —
+  // tracks the single highest composite day you've ever logged, not a cumulative count.
+  function bestCompositeScore(){
+    if(!state.history.length) return 0;
+    return Math.max.apply(null, state.history.map(function(h){ return compositeScoreOf(h); }));
+  }
+  // Named like real Whoop achievements ("Runner's High", "Green Monster") instead of a plain
+  // stat label — `title` is the flavorful badge name shown big; `label`/`progress` still carry
+  // the literal criteria so it's never just a cute name with no explanation underneath.
   var BADGES = [
-    {id:"starter", ic:badgeIconSvg(BADGE_COLORS.bronze), threshold:5, label:"5 check-ins"},
-    {id:"committed", ic:badgeIconSvg(BADGE_COLORS.silver), threshold:15, label:"15 check-ins"},
-    {id:"dedicated", ic:badgeIconSvg(BADGE_COLORS.gold), threshold:30, label:"30 check-ins"},
-    {id:"elite", ic:badgeIconSvg(BADGE_COLORS.elite), threshold:50, label:"50 check-ins"}
+    {id:"starter", group:"Check-ins", title:"Sprout", ic:badgeIconSvg(BADGE_COLORS.bronze), label:"5 check-ins", threshold:5,
+      test:function(){ return state.history.length>=5; }, progress:function(){ return Math.min(state.history.length,5)+"/5 check-ins"; }},
+    {id:"committed", group:"Check-ins", title:"Taking Root", ic:badgeIconSvg(BADGE_COLORS.silver), label:"15 check-ins", threshold:15,
+      test:function(){ return state.history.length>=15; }, progress:function(){ return Math.min(state.history.length,15)+"/15 check-ins"; }},
+    {id:"dedicated", group:"Check-ins", title:"In Full Bloom", ic:badgeIconSvg(BADGE_COLORS.gold), label:"30 check-ins", threshold:30,
+      test:function(){ return state.history.length>=30; }, progress:function(){ return Math.min(state.history.length,30)+"/30 check-ins"; }},
+    {id:"elite", group:"Check-ins", title:"Deep Roots", ic:badgeIconSvg(BADGE_COLORS.elite), label:"50 check-ins", threshold:50,
+      test:function(){ return state.history.length>=50; }, progress:function(){ return Math.min(state.history.length,50)+"/50 check-ins"; }},
+    {id:"century", group:"Check-ins", title:"Evergreen", ic:badgeIconSvg(BADGE_COLORS.platinum), label:"100 check-ins", threshold:100,
+      test:function(){ return state.history.length>=100; }, progress:function(){ return Math.min(state.history.length,100)+"/100 check-ins"; }},
+    {id:"firstrep", group:"Training logged", title:"First Rep", ic:badgeIconSvg(BADGE_COLORS.bronze), label:"1st practice or game logged",
+      test:function(){ return state.practiceLogs.length>=1; }, progress:function(){ return Math.min(state.practiceLogs.length,1)+"/1 logged"; }},
+    {id:"fullseason", group:"Training logged", title:"In Season", ic:badgeIconSvg(BADGE_COLORS.gold), label:"10 practices or games logged",
+      test:function(){ return state.practiceLogs.length>=10; }, progress:function(){ return Math.min(state.practiceLogs.length,10)+"/10 logged"; }},
+    {id:"openbook", group:"Reflection", title:"Open Book", ic:badgeIconSvg(BADGE_COLORS.silver), label:"10 check-ins with a note",
+      test:function(){ return notesWrittenCount()>=10; }, progress:function(){ return Math.min(notesWrittenCount(),10)+"/10 notes"; }},
+    {id:"bounceback", group:"Resilience", title:"Comeback", ic:badgeIconSvg(BADGE_COLORS.gold), label:"Checked back in after a missed day",
+      test:function(){ return hasBounceBack(); }, progress:function(){ return "Comes automatically the first time you miss a day and return"; }},
+    {id:"reachedout", group:"Talk to Bloom", title:"Reached Out", ic:badgeIconSvg(BADGE_COLORS.elite), label:"Talked to Bloom",
+      test:function(){ return !!state.talk.everUsed; }, progress:function(){ return "Send Bloom a message any time"; }},
+    {id:"peakstate", group:"Personal Best", title:"Peak State", ic:badgeIconSvg(BADGE_COLORS.platinum), label:"A day scoring 90+ across all 4 pillars",
+      test:function(){ return bestCompositeScore()>=90; }, progress:function(){ return "Best day so far: "+bestCompositeScore()+"/90"; }}
   ];
 
   // ---- Buddy evolution — grounded in real behavior-change research rather than an
@@ -606,15 +674,21 @@
   var EVOLUTION_STAGES = [
     { id:"egg", label:"Egg", req:"Log your first check-in to hatch" },
     { id:"hatchling", label:"Hatchling", req:"Your first check-in" },
-    { id:"growing", label:"Growing", req:"14-day longest streak" },
-    { id:"established", label:"Established", req:"30-day longest streak" },
-    { id:"thriving", label:"Thriving", req:"66-day longest streak — the point research shows a habit typically becomes automatic (Lally et al., 2010)" }
+    { id:"curious", label:"Curious", req:"3-day longest streak — early consistency is what builds belief you can keep going (self-efficacy, Bandura 1977)" },
+    { id:"growing", label:"Growing", req:"7-day longest streak — your first full week" },
+    { id:"established", label:"Established", req:"14-day longest streak" },
+    { id:"confident", label:"Confident", req:"30-day longest streak" },
+    { id:"thriving", label:"Thriving", req:"66-day longest streak — the point research shows a habit typically becomes automatic (Lally et al., 2010)" },
+    { id:"flourishing", label:"Flourishing", req:"100-day longest streak — sustained well beyond the point a habit usually sets in" }
   ];
   function petStage(){
     if(state.history.length === 0) return 0;
-    if(state.longestStreak >= 66) return 4;
-    if(state.longestStreak >= 30) return 3;
-    if(state.longestStreak >= 14) return 2;
+    if(state.longestStreak >= 100) return 7;
+    if(state.longestStreak >= 66) return 6;
+    if(state.longestStreak >= 30) return 5;
+    if(state.longestStreak >= 14) return 4;
+    if(state.longestStreak >= 7) return 3;
+    if(state.longestStreak >= 3) return 2;
     return 1;
   }
 
@@ -707,9 +781,10 @@
         points: state.points, streak: state.streak, longestStreak: state.longestStreak,
         history: state.history, practiceLogs: state.practiceLogs,
         pet: state.pet, settings: state.settings, pendingGoal: state.pendingGoal,
-        // Only the count + date persist for Talk to Bloom's daily cap — never the actual
-        // message text, which is intentionally kept in memory only (see state.talk above).
-        talkQuota: { dayKey: state.talk.dayKey, countToday: state.talk.countToday }
+        // Only the count + date (+ a one-time "ever used" flag for the Talk to Bloom badge)
+        // persist for Talk to Bloom — never the actual message text, which is intentionally
+        // kept in memory only (see state.talk above).
+        talkQuota: { dayKey: state.talk.dayKey, countToday: state.talk.countToday, everUsed: state.talk.everUsed }
       }));
     } catch(e) { /* storage unavailable/full — app still works for this session */ }
   }
@@ -729,7 +804,7 @@
     // might type something quite personal, so it doesn't stick around after a refresh.
     // The daily count DOES persist (via settings-style merge below) purely as a lightweight,
     // disclosed cost/abuse guard, reset automatically whenever the local date changes.
-    talk: { messages: [], sending: false, dayKey: null, countToday: 0 },
+    talk: { messages: [], sending: false, dayKey: null, countToday: 0, everUsed: false },
     points: DEMO_MODE ? 240 : 0,
     streak: DEMO_MODE ? 6 : 0,
     longestStreak: DEMO_MODE ? 34 : 0,
@@ -757,7 +832,7 @@
       if(typeof saved.longestStreak === "number") state.longestStreak = saved.longestStreak;
       if(saved.pet && typeof saved.pet === "object") state.pet = Object.assign({}, state.pet, saved.pet);
       if(saved.settings && typeof saved.settings === "object") state.settings = Object.assign({}, state.settings, saved.settings);
-      if(saved.talkQuota && typeof saved.talkQuota === "object"){ state.talk.dayKey = saved.talkQuota.dayKey || null; state.talk.countToday = saved.talkQuota.countToday || 0; }
+      if(saved.talkQuota && typeof saved.talkQuota === "object"){ state.talk.dayKey = saved.talkQuota.dayKey || null; state.talk.countToday = saved.talkQuota.countToday || 0; state.talk.everUsed = !!saved.talkQuota.everUsed; }
       if(saved.pendingGoal && typeof saved.pendingGoal === "object") state.pendingGoal = saved.pendingGoal;
     }
   }
@@ -989,13 +1064,13 @@
       '</svg>';
     }
 
-    // Stages 1-4 share the same critter template, growing a bit more expressive/confident
-    // (bigger eyes, deeper smile, sparkle accents, a soft glow at the final stage) at each one.
-    var eyeR = stage>=3 ? 6.6 : 6;
-    var smileD = stage===1 ? 'M 42 66 Q 50 71 58 66' : (stage===2 ? 'M 41 66 Q 50 74 59 66' : 'M 40 65 Q 50 77 60 65');
-    var glow = stage>=4 ? '<circle cx="50" cy="56" r="47" fill="'+color+'" opacity="0.22"/>' : '';
-    var sparkleCount = stage>=4 ? 3 : (stage===3 ? 2 : (stage===2 ? 1 : 0));
-    var sparklePositions = [[13,26],[87,64],[10,72]];
+    // Stages 1-7 share the same critter template, growing a bit more expressive/confident
+    // (bigger eyes, deeper smile, sparkle accents, a soft glow that intensifies) at each one.
+    var eyeR = stage>=6 ? 6.8 : (stage>=4 ? 6.4 : 6);
+    var smileD = stage<=2 ? 'M 42 66 Q 50 71 58 66' : (stage<=4 ? 'M 41 66 Q 50 74 59 66' : 'M 40 65 Q 50 77 60 65');
+    var glow = stage>=6 ? '<circle cx="50" cy="56" r="47" fill="'+color+'" opacity="'+(stage>=7?0.3:0.22)+'"/>' : '';
+    var sparkleCount = stage>=7 ? 4 : (stage>=6 ? 3 : (stage>=5 ? 2 : (stage>=3 ? 1 : 0)));
+    var sparklePositions = [[13,26],[87,64],[10,72],[50,7]];
     var sparkles = "";
     for(var i=0;i<sparkleCount;i++){
       var p = sparklePositions[i];
@@ -1269,6 +1344,7 @@
     var priorHistory = state.talk.messages.map(function(m){ return { role: m.role, text: m.text }; });
     state.talk.messages.push({ role:"user", text: text });
     state.talk.countToday += 1;
+    state.talk.everUsed = true;
     state.talk.sending = true;
     render(); scrollTalkToBottom();
 
@@ -1632,16 +1708,26 @@
   function renderPet(){
     var el = document.getElementById("view-pet");
     var lvl = levelForPoints(state.points), xp = xpPctForPoints(state.points);
-    var totalCheckins = state.history.length;
     var stage = petStage();
     var colorSwatches = PET_COLORS.map(function(c){ return '<div class="swatch '+(c===state.pet.color?"selected":"")+'" style="background:'+c+'" data-color="'+c+'"></div>'; }).join("");
     var accBtns = ACCESSORIES.map(function(a){
       var locked = state.longestStreak<a.unlockStreak && state.streak<a.unlockStreak;
       return '<button class="acc-btn '+(a.id===state.pet.accessory?"selected":"")+' '+(locked?"locked":"")+'" data-acc="'+a.id+'" '+(locked?'disabled':'')+'>'+a.ic+(locked?'<span class="lock-badge">'+lockIconSvg(9)+a.unlockStreak+'d</span>':'')+'</button>';
     }).join("");
-    var badgeItems = BADGES.map(function(b){
-      var locked = totalCheckins < b.threshold;
-      return '<div class="badge-item '+(locked?"locked":"")+'"><span class="bic">'+(locked?lockIconSvg(22):b.ic)+'</span><span class="blbl">'+(locked?b.threshold+" check-ins":b.label)+'</span></div>';
+    var badgeGroupOrder = [];
+    BADGES.forEach(function(b){ if(badgeGroupOrder.indexOf(b.group)===-1) badgeGroupOrder.push(b.group); });
+    var earnedBadgeCount = BADGES.filter(function(b){ return b.test(); }).length;
+    var badgeGroupsHtml = badgeGroupOrder.map(function(g){
+      var items = BADGES.filter(function(b){ return b.group===g; }).map(function(b){
+        var locked = !b.test();
+        // Locked cards still show the real, flavorful name (not "???") — the point is to
+        // preview what's coming and how close you are, same as Whoop surfacing "best so far."
+        return '<div class="badge-item '+(locked?"locked":"")+'">' +
+          '<span class="bic">'+(locked?lockIconSvg(26):b.ic)+'</span>' +
+          '<span class="btxt"><span class="btitle">'+b.title+'</span><span class="blbl">'+(locked?b.progress():b.label)+'</span></span>' +
+        '</div>';
+      }).join("");
+      return '<div class="badge-group"><div class="badge-group-title">'+g+'</div><div class="badge-grid">'+items+'</div></div>';
     }).join("");
     var growthStages = EVOLUTION_STAGES.map(function(s, idx){
       var locked = idx > stage;
@@ -1666,7 +1752,7 @@
       '<div class="card"><h3>Growth</h3><p>'+state.pet.name+' evolves as your <strong style="color:var(--text-primary);">longest-ever streak</strong> grows — never based on today alone, so a missed day never undoes progress. Stages are fixed and shown here up front, not random drops.</p><div class="growth-row">'+growthStages+'</div></div>' +
       '<div class="card"><h3>Name</h3><input type="text" id="petNameInput" value="'+state.pet.name+'" maxlength="14"></div>' +
       '<div class="card"><h3>Decorate</h3><p>Color</p><div class="swatch-row">'+colorSwatches+'</div><p style="margin-top:12px;">Accessories — unlock with longer streaks</p><div class="acc-row">'+accBtns+'</div></div>' +
-      '<div class="card"><h3>Badges — unlock with total check-ins</h3><div class="badge-grid">'+badgeItems+'</div></div>';
+      '<div class="card"><h3>Badges — '+earnedBadgeCount+' / '+BADGES.length+' earned</h3><p>Different goals, different badges — check-ins, training logged, journaling, coming back after a miss, and Talk to Bloom all have their own.</p>'+badgeGroupsHtml+'</div>';
 
     document.getElementById("petNameInput").onchange = function(e){ state.pet.name = e.target.value || "Buddy"; render(); };
     el.querySelectorAll(".swatch[data-color]").forEach(function(s){ s.onclick=function(){ state.pet.color=s.getAttribute("data-color"); render(); }; });
@@ -1700,7 +1786,7 @@
         '<div class="row"><div><div class="lbl">AI pattern alerts</div><div class="desc">Flag concerning trends across your 4 pillars and show a wellbeing summary (see Home)</div></div><label class="switch"><input type="checkbox" id="aiToggle" '+(state.settings.aiAlerts?"checked":"")+'><span class="toggle-slider"></span></label></div>' +
       '</div>' +
       '<div class="card"><h3>Reminders after activities</h3><p>Tie a reminder to practice, games, or your schedule.</p>'+remindersHtml+'<button class="add-btn" id="addReminderBtn">+ Add reminder</button></div>' +
-      '<div class="card"><h3>Rewards</h3><p>'+state.pet.name+' evolves through 5 growth stages as your longest-ever streak grows (see the Growth card on the Buddy tab for exact thresholds) — that\'s permanent and never undone by a missed day. Streak milestones: 5-day (+25 pts), 10-day (+50 pts), 20-day and 35-day unlock new accessories. Badges unlock at 5 / 15 / 30 / 50 total check-ins, streak or not.</p></div>' +
+      '<div class="card"><h3>Rewards</h3><p>'+state.pet.name+' evolves through 8 growth stages as your longest-ever streak grows (see the Growth card on the Buddy tab for exact thresholds) — that\'s permanent and never undone by a missed day. 8 accessories unlock the same way, from a 3-day streak up through a 66-day one. Streak milestones also add bonus points: 5-day (+25 pts), 10-day (+50 pts). Beyond streaks, 10 badges across 5 categories — check-ins, training logged, journaling, coming back after a missed day, and Talk to Bloom — reward different ways of showing up, not just showing up every single day.</p></div>' +
       '<button class="btn-secondary" style="width:100%;" id="testNotifBtn">Send a test reminder</button>';
     el.querySelectorAll("[data-theme-opt]").forEach(function(b){
       b.onclick = function(){ state.settings.theme = b.getAttribute("data-theme-opt"); applyTheme(); render(); };
@@ -1902,6 +1988,7 @@
     var now = Date.now();
     var prevEntry = state.history.length ? state.history[state.history.length-1] : null;
     var stageBefore = petStage();
+    var earnedBadgesBefore = BADGES.filter(function(b){ return b.test(); }).map(function(b){ return b.id; });
     state.history.push({ts:now, energy:a.energy, stress:a.stress, sleep:a.sleep, motivation:a.motivation, note:combinedNote});
     // Honest streak logic: only extends the streak if the previous check-in was exactly
     // yesterday. Miss a day (or more) and it resets to 1 instead of silently continuing.
@@ -1913,10 +2000,13 @@
     var milestoneMsg="";
     if(state.streak===5) milestoneMsg=" 5-day streak! +25 bonus points.";
     if(state.streak===10) milestoneMsg=" 10-day streak! +50 bonus points.";
-    if(state.streak===20) milestoneMsg=" 20-day streak! New accessory unlocked.";
-    if(state.streak===35) milestoneMsg=" 35-day streak! New accessory unlocked.";
     if(state.streak===5||state.streak===10) state.points += (state.streak===5?25:50);
-    if(state.history.length===5||state.history.length===15||state.history.length===30||state.history.length===50) milestoneMsg += " New badge earned!";
+    // Generalized against ACCESSORIES so every unlock threshold in that list — not just a
+    // couple hardcoded ones — surfaces this message automatically.
+    var justUnlockedAcc = ACCESSORIES.filter(function(a){ return a.unlockStreak===state.streak; })[0];
+    if(justUnlockedAcc) milestoneMsg += " New accessory unlocked!";
+    var newlyEarnedBadges = BADGES.filter(function(b){ return earnedBadgesBefore.indexOf(b.id)===-1 && b.test(); });
+    if(newlyEarnedBadges.length) milestoneMsg += (newlyEarnedBadges.length===1 ? " New badge earned — "+newlyEarnedBadges[0].label+"!" : " "+newlyEarnedBadges.length+" new badges earned!");
     render();
     // A stage change is its own moment — surface it distinctly rather than folding it into
     // the routine points toast, since this is the "visible growth" payoff the whole Buddy
@@ -2161,26 +2251,19 @@
       entry.goal = { text: state.pendingGoal.text, type: state.pendingGoal.type, rating: pc.goalRating, note: pc.goalNote };
       state.pendingGoal = null;
     }
+    var earnedBadgesBefore = BADGES.filter(function(b){ return b.test(); }).map(function(b){ return b.id; });
     state.practiceLogs.push(entry);
     closePracticeCheckin();
     var zone = loadTrendZone();
     var msg = "Session logged — training load "+load+" AU.";
     if(zone && zone.name==="Elevated") msg += " That's a notable jump from your recent average.";
+    var newlyEarnedBadges = BADGES.filter(function(b){ return earnedBadgesBefore.indexOf(b.id)===-1 && b.test(); });
+    if(newlyEarnedBadges.length) msg += (newlyEarnedBadges.length===1 ? " New badge earned — "+newlyEarnedBadges[0].label+"!" : " "+newlyEarnedBadges.length+" new badges earned!");
     render();
     showToast(msg, 4200);
   }
 
   document.querySelectorAll(".tabbar button").forEach(function(b){ b.onclick=function(){ state.tab=b.getAttribute("data-tab"); state.detailPillar=null; state.showInsights=false; state.showPracticeLog=false; state.showTalk=false; render(); }; });
-
-  function updateStatusClock(){
-    var el = document.getElementById("statusClock");
-    if(!el) return;
-    var d = new Date(); var h = d.getHours(), m = d.getMinutes();
-    var ap = h>=12?"PM":"AM"; var h12 = h%12; if(h12===0) h12=12;
-    el.textContent = h12+":"+(m<10?"0":"")+m+" "+ap;
-  }
-  updateStatusClock();
-  setInterval(updateStatusClock, 30000);
 
   render();
 })();
