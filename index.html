@@ -95,7 +95,8 @@
   .pet-info { flex: 1; min-width: 0; }
   .pet-info .toprow { display:flex; align-items:center; justify-content:space-between; }
   .pet-info .pname2 { font-size: 13.5px; font-weight: 800; color: var(--text-primary); }
-  .pet-info .lvl { font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; }
+  .lvl { font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; }
+  .pet-stage-card .lvl { font-size: 12px; padding: 3px 10px; }
   .xp-track { width:100%; height: 6px; background: var(--surface-2); border-radius: 999px; margin-top: 6px; overflow:hidden; }
   .xp-fill { height: 100%; background: var(--accent); border-radius: 999px; }
   .pet-stats { display:flex; gap: 10px; margin-top: 5px; font-size: 11px; color: var(--muted); font-weight:600; }
@@ -201,14 +202,18 @@
   .seg-btn.selected svg { color: var(--accent); }
   input[type="time"] { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); }
   input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); font-size: 14px; margin-top: 6px; }
+  .input-with-icon { position:relative; }
+  .input-with-icon .iic { position:absolute; left:12px; top:calc(50% + 3px); transform:translateY(-50%); color: var(--accent); display:flex; pointer-events:none; }
+  .input-with-icon input[type="text"] { padding-left: 36px; }
 
   .reminder-item { display:flex; align-items:center; justify-content:space-between; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin-top: 8px; font-size: 12px; color: var(--text-primary); }
   .reminder-item button { background:none; border:none; color:var(--critical); font-size:14px; cursor:pointer; }
   .add-btn { margin-top: 10px; width: 100%; padding: 10px; border-radius: 12px; border: 1px dashed var(--muted); background: none; color: var(--text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; }
 
   /* Buddy / pet page */
-  .pet-stage { display: flex; align-items: center; justify-content: center; padding: 10px 0 4px; }
-  .pet-body { width: 108px; height: 108px; border-radius: 50%; position: relative; display:flex; align-items:center; justify-content:center; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.5)); }
+  .pet-stage { display: flex; align-items: center; justify-content: center; padding: 14px 0 8px; }
+  .pet-avatar-ring { width: 188px; height: 188px; border-radius: 50%; background: var(--surface-1); border: 1px solid var(--border); box-shadow: var(--card-shadow); display:flex; align-items:center; justify-content:center; }
+  .pet-body { width: 120px; height: 120px; border-radius: 50%; position: relative; display:flex; align-items:center; justify-content:center; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3)); }
   .pet-body .accessory { position:absolute; top:-22px; left:50%; transform:translateX(-50%); display:block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
   .swatch-row { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
@@ -218,19 +223,34 @@
   .acc-btn.selected { border-color: var(--accent); border-width: 2px; }
   .acc-btn.locked { opacity: 0.35; cursor: not-allowed; }
   .acc-btn .lock-badge { position:absolute; bottom:-5px; right:-5px; font-size: 9px; display:flex; align-items:center; gap:1px; background:var(--surface-1); border:1px solid var(--border); border-radius:7px; padding:1px 4px; color:var(--muted); font-weight:700; }
-  /* Whoop-style achievement cards: icon left, a flavorful earned name up top, the literal
-     criteria/progress as a small caption underneath — not just a locked/unlocked medal grid. */
-  .badge-grid { display:flex; flex-direction:column; gap: 8px; margin-top: 8px; }
-  .badge-item { display:flex; flex-direction:row; align-items:center; gap:11px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
-  .badge-item .bic { display:flex; flex-shrink:0; }
-  .badge-item.locked { opacity: 0.45; }
-  .badge-item .btxt { display:flex; flex-direction:column; gap:1px; min-width:0; }
-  .badge-item .btitle { font-size: 13px; font-weight: 800; color: var(--text-primary); }
-  .badge-item.locked .btitle { color: var(--muted); }
-  .badge-item .blbl { font-size: 10.5px; color: var(--muted); font-weight:600; }
-  .badge-group { margin-top: 14px; }
+  /* Apple Watch / Whoop "trophy case" style: circular medal icons in a grid, the flavorful
+     earned name below each one — tap-free at a glance, same as an Activity awards shelf.
+     Only earned medals plus ONE "next up" teaser per group render (see badgeGroupsHtml) —
+     a full wall of grayed-out locked medals reads as limiting, not motivating. The teaser
+     hides only the cosmetic flavor name ("???"); the real numeric progress underneath is
+     always shown, so nothing about eligibility is actually hidden — same idea as a game
+     surfacing a "???" trophy with a visible completion counter. */
+  .badge-grid { display:grid; grid-template-columns: repeat(3,1fr); gap: 16px 4px; margin-top: 10px; }
+  .badge-item { display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center; }
+  .badge-item .bic { display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:50%; background: var(--surface-2); border: 1px solid var(--border); box-shadow: var(--card-shadow); flex-shrink:0; }
+  .badge-item .btxt { display:flex; flex-direction:column; gap:2px; }
+  .badge-item .btitle { font-size: 11px; font-weight: 800; color: var(--text-primary); line-height:1.25; }
+  .badge-item .blbl { font-size: 8.5px; color: var(--muted); font-weight:600; line-height:1.25; }
+  .badge-item.teaser .bic { box-shadow:none; border: 1.5px dashed var(--accent); background: var(--accent-soft); animation: teaserPulse 2.6s ease-in-out infinite; }
+  .badge-item.teaser .btitle { color: var(--accent); letter-spacing: 0.06em; }
+  @keyframes teaserPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.35); }
+    50% { box-shadow: 0 0 0 7px rgba(var(--accent-rgb), 0); }
+  }
+  .badge-item.just-earned .bic { animation: badgePopIn 0.7s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes badgePopIn {
+    0% { transform: scale(0.3); box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.6); }
+    55% { transform: scale(1.18); }
+    100% { transform: scale(1); box-shadow: 0 0 0 14px rgba(var(--accent-rgb), 0); }
+  }
+  .badge-group { margin-top: 16px; }
   .badge-group:first-of-type { margin-top: 10px; }
-  .badge-group-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+  .badge-group-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; }
 
   /* Bloom Together */
   .friend-row { display:flex; align-items:center; gap:11px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
@@ -245,13 +265,18 @@
   .encourage-item .etime { font-size: 10px; color: var(--muted); margin-left: auto; }
   .invite-code { font-size: 22px; font-weight: 800; letter-spacing: 0.12em; color: var(--accent); text-align:center; background: var(--accent-soft); border-radius: 12px; padding: 10px; margin-top: 8px; }
 
-  /* Buddy growth timeline */
+  /* Buddy growth timeline — only reached stages plus one "next up" teaser render (see
+     growthStages), same mystery-reveal treatment as the badge trophy case. */
   .growth-row { display:grid; grid-template-columns: repeat(4,1fr); justify-content:space-between; gap: 6px; margin-top: 10px; }
-  .growth-stage { display:flex; flex-direction:column; align-items:center; gap:5px; padding: 8px 2px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+  .growth-stage { display:flex; flex-direction:column; align-items:center; gap:6px; padding: 10px 2px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--border); }
   .growth-stage.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
-  .growth-stage.locked .growth-avatar { opacity: 0.35; }
   .growth-stage .glbl { font-size: 8px; color: var(--muted); font-weight:700; text-transform:uppercase; text-align:center; letter-spacing:0.02em; }
   .growth-stage.current .glbl { color: var(--accent); }
+  .growth-stage.teaser { background: none; border-style: dashed; border-color: var(--border); }
+  .growth-stage .growth-avatar-teaser { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; border: 1.5px dashed var(--accent); background: var(--accent-soft); animation: teaserPulse 2.6s ease-in-out infinite; }
+  .growth-stage.teaser .glbl { color: var(--accent); letter-spacing: 0.06em; }
+  .growth-stage .gprog { font-size: 7px; color: var(--muted); font-weight:600; text-align:center; margin-top:-3px; }
+  .growth-stage.just-evolved .growth-avatar { animation: badgePopIn 0.7s cubic-bezier(.34,1.56,.64,1); }
 
   /* Full-screen check-in */
   .checkin-screen { position: absolute; inset: 0; background: var(--page); z-index: 25; display:flex; flex-direction:column; }
@@ -594,6 +619,13 @@
     size = size || 11;
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-1px;"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
   }
+  // Teaser icon for the one "next up" badge in a group — a question mark rather than a
+  // padlock, so the not-yet-earned slot reads as an enticing mystery instead of something
+  // withheld. Used only for the single next-in-line badge per group, never a whole locked row.
+  function mysteryIconSvg(size){
+    size = size || 28;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:inline-block;vertical-align:-1px;color:var(--accent);"><path d="M9 9a3 3 0 1 1 4.2 2.7c-1 .45-1.2 1.05-1.2 2.05" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="17.3" r="1.1" fill="currentColor"/></svg>';
+  }
   function badgeIconSvg(color, size){
     size = size || 26;
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="display:block;">' +
@@ -645,27 +677,27 @@
   // stat label — `title` is the flavorful badge name shown big; `label`/`progress` still carry
   // the literal criteria so it's never just a cute name with no explanation underneath.
   var BADGES = [
-    {id:"starter", group:"Check-ins", title:"Sprout", ic:badgeIconSvg(BADGE_COLORS.bronze), label:"5 check-ins", threshold:5,
+    {id:"starter", group:"Check-ins", title:"Sprout", ic:badgeIconSvg(BADGE_COLORS.bronze, 36), label:"5 check-ins", threshold:5,
       test:function(){ return state.history.length>=5; }, progress:function(){ return Math.min(state.history.length,5)+"/5 check-ins"; }},
-    {id:"committed", group:"Check-ins", title:"Taking Root", ic:badgeIconSvg(BADGE_COLORS.silver), label:"15 check-ins", threshold:15,
+    {id:"committed", group:"Check-ins", title:"Taking Root", ic:badgeIconSvg(BADGE_COLORS.silver, 36), label:"15 check-ins", threshold:15,
       test:function(){ return state.history.length>=15; }, progress:function(){ return Math.min(state.history.length,15)+"/15 check-ins"; }},
-    {id:"dedicated", group:"Check-ins", title:"In Full Bloom", ic:badgeIconSvg(BADGE_COLORS.gold), label:"30 check-ins", threshold:30,
+    {id:"dedicated", group:"Check-ins", title:"In Full Bloom", ic:badgeIconSvg(BADGE_COLORS.gold, 36), label:"30 check-ins", threshold:30,
       test:function(){ return state.history.length>=30; }, progress:function(){ return Math.min(state.history.length,30)+"/30 check-ins"; }},
-    {id:"elite", group:"Check-ins", title:"Deep Roots", ic:badgeIconSvg(BADGE_COLORS.elite), label:"50 check-ins", threshold:50,
+    {id:"elite", group:"Check-ins", title:"Deep Roots", ic:badgeIconSvg(BADGE_COLORS.elite, 36), label:"50 check-ins", threshold:50,
       test:function(){ return state.history.length>=50; }, progress:function(){ return Math.min(state.history.length,50)+"/50 check-ins"; }},
-    {id:"century", group:"Check-ins", title:"Evergreen", ic:badgeIconSvg(BADGE_COLORS.platinum), label:"100 check-ins", threshold:100,
+    {id:"century", group:"Check-ins", title:"Evergreen", ic:badgeIconSvg(BADGE_COLORS.platinum, 36), label:"100 check-ins", threshold:100,
       test:function(){ return state.history.length>=100; }, progress:function(){ return Math.min(state.history.length,100)+"/100 check-ins"; }},
-    {id:"firstrep", group:"Training logged", title:"First Rep", ic:badgeIconSvg(BADGE_COLORS.bronze), label:"1st practice or game logged",
+    {id:"firstrep", group:"Training logged", title:"First Rep", ic:badgeIconSvg(BADGE_COLORS.bronze, 36), label:"1st practice or game logged",
       test:function(){ return state.practiceLogs.length>=1; }, progress:function(){ return Math.min(state.practiceLogs.length,1)+"/1 logged"; }},
-    {id:"fullseason", group:"Training logged", title:"In Season", ic:badgeIconSvg(BADGE_COLORS.gold), label:"10 practices or games logged",
+    {id:"fullseason", group:"Training logged", title:"In Season", ic:badgeIconSvg(BADGE_COLORS.gold, 36), label:"10 practices or games logged",
       test:function(){ return state.practiceLogs.length>=10; }, progress:function(){ return Math.min(state.practiceLogs.length,10)+"/10 logged"; }},
-    {id:"openbook", group:"Reflection", title:"Open Book", ic:badgeIconSvg(BADGE_COLORS.silver), label:"10 check-ins with a note",
+    {id:"openbook", group:"Reflection", title:"Open Book", ic:badgeIconSvg(BADGE_COLORS.silver, 36), label:"10 check-ins with a note",
       test:function(){ return notesWrittenCount()>=10; }, progress:function(){ return Math.min(notesWrittenCount(),10)+"/10 notes"; }},
-    {id:"bounceback", group:"Resilience", title:"Comeback", ic:badgeIconSvg(BADGE_COLORS.gold), label:"Checked back in after a missed day",
+    {id:"bounceback", group:"Resilience", title:"Comeback", ic:badgeIconSvg(BADGE_COLORS.gold, 36), label:"Checked back in after a missed day",
       test:function(){ return hasBounceBack(); }, progress:function(){ return "Comes automatically the first time you miss a day and return"; }},
-    {id:"reachedout", group:"Talk to Bloom", title:"Reached Out", ic:badgeIconSvg(BADGE_COLORS.elite), label:"Talked to Bloom",
+    {id:"reachedout", group:"Talk to Bloom", title:"Reached Out", ic:badgeIconSvg(BADGE_COLORS.elite, 36), label:"Talked to Bloom",
       test:function(){ return !!state.talk.everUsed; }, progress:function(){ return "Send Bloom a message any time"; }},
-    {id:"peakstate", group:"Personal Best", title:"Peak State", ic:badgeIconSvg(BADGE_COLORS.platinum), label:"A day scoring 90+ across all 4 pillars",
+    {id:"peakstate", group:"Personal Best", title:"Peak State", ic:badgeIconSvg(BADGE_COLORS.platinum, 36), label:"A day scoring 90+ across all 4 pillars",
       test:function(){ return bestCompositeScore()>=90; }, progress:function(){ return "Best day so far: "+bestCompositeScore()+"/90"; }}
   ];
 
@@ -704,6 +736,15 @@
     if(state.longestStreak >= 7) return 3;
     if(state.longestStreak >= 3) return 2;
     return 1;
+  }
+  // Real, fixed thresholds behind the "next evolution" teaser — never random, just not
+  // cosmetically revealed until you get there. Keeps the growth card honest the same way
+  // the badge teasers are: the number is always visible, only the look/name is a surprise.
+  var STAGE_STREAK_NEEDED = {2:3, 3:7, 4:14, 5:30, 6:66, 7:100};
+  function stageProgressCaption(nextIdx){
+    if(nextIdx === 1) return "Log your first check-in";
+    var need = STAGE_STREAK_NEEDED[nextIdx];
+    return Math.min(state.longestStreak, need)+"/"+need+"-day streak";
   }
 
   // Seed 14 days of correlated sample data so trends look real immediately.
@@ -816,6 +857,12 @@
 
   var state = {
     tab: "home", detailPillar: null, showInsights: false, showPracticeLog: false, showTalk: false, showSocial: false,
+    // Transient — never persisted. Set right when a badge is newly earned so the Buddy
+    // screen's badge grid can play a one-time pop-in reveal, then cleared after that render.
+    justEarnedBadgeIds: [],
+    // Transient — never persisted. Set right when Buddy evolves to a new stage so the
+    // Growth card's current-stage avatar can play the same pop-in reveal as badges.
+    justEvolvedStage: false,
     insightsSubTab: "patterns", insightsData: null, actionIdx: {energy:0, stress:0, sleep:0, motivation:0},
     // Talk to Bloom lives only in memory, not localStorage — it's the one place someone
     // might type something quite personal, so it doesn't stick around after a refresh.
@@ -1102,14 +1149,14 @@
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 100" style="display:block;overflow:visible;">' +
       '<defs><clipPath id="'+clipId+'"><circle cx="50" cy="55" r="40"/></clipPath></defs>' +
       glow +
-      '<circle cx="23" cy="21" r="15" fill="'+earColor+'"/>' +
-      '<circle cx="77" cy="21" r="15" fill="'+earColor+'"/>' +
-      '<circle cx="23" cy="22" r="7.5" fill="'+innerEar+'"/>' +
-      '<circle cx="77" cy="22" r="7.5" fill="'+innerEar+'"/>' +
-      '<circle cx="50" cy="55" r="40" fill="'+color+'"/>' +
+      '<circle cx="21" cy="20" r="16.5" fill="'+earColor+'"/>' +
+      '<circle cx="79" cy="20" r="16.5" fill="'+earColor+'"/>' +
+      '<circle cx="21" cy="21" r="8.2" fill="'+innerEar+'"/>' +
+      '<circle cx="79" cy="21" r="8.2" fill="'+innerEar+'"/>' +
+      '<circle cx="50" cy="56" r="41" fill="'+color+'"/>' +
       '<ellipse cx="50" cy="100" rx="46" ry="30" fill="'+shadowColor+'" opacity="0.4" clip-path="url(#'+clipId+')"/>' +
-      '<ellipse cx="29" cy="63" rx="8" ry="5" fill="#ff9aa6" opacity="0.55"/>' +
-      '<ellipse cx="71" cy="63" rx="8" ry="5" fill="#ff9aa6" opacity="0.55"/>' +
+      '<ellipse cx="28" cy="64" rx="9" ry="5.6" fill="#ff9aa6" opacity="0.55"/>' +
+      '<ellipse cx="72" cy="64" rx="9" ry="5.6" fill="#ff9aa6" opacity="0.55"/>' +
       '<circle cx="38" cy="51" r="'+eyeR+'" fill="#2c2a24"/>' +
       '<circle cx="62" cy="51" r="'+eyeR+'" fill="#2c2a24"/>' +
       '<circle cx="40" cy="48.5" r="1.8" fill="#fff"/>' +
@@ -1128,10 +1175,10 @@
   function petStatusText(){
     var stage = petStage();
     if(stage === 0) return "Log your first check-in to hatch "+state.pet.name+".";
-    if(state.streak>=10) return state.pet.name+" is thriving on your streak.";
-    if(state.streak>=3) return state.pet.name+" is happy and cared for.";
-    if(state.streak>=1) return "Check in to keep "+state.pet.name+" happy.";
-    return state.pet.name+" misses you.";
+    if(state.streak>=10) return "Thriving on your streak — keep it up.";
+    if(state.streak>=3) return "Growing steadily — keep showing up.";
+    if(state.streak>=1) return "Check in today to keep the momentum going.";
+    return state.pet.name+" is ready whenever you are.";
   }
 
   function render(){
@@ -1879,48 +1926,71 @@
     var badgeGroupOrder = [];
     BADGES.forEach(function(b){ if(badgeGroupOrder.indexOf(b.group)===-1) badgeGroupOrder.push(b.group); });
     var earnedBadgeCount = BADGES.filter(function(b){ return b.test(); }).length;
+    // Whoop-style "trophy case": show what's earned plus exactly ONE glowing "next up" teaser
+    // per group — never the full remaining list. The teaser hides only the flavorful name
+    // ("???"); progress() still renders underneath so eligibility stays fully transparent,
+    // it's just the cosmetic reveal that's saved for the moment it's actually earned.
     var badgeGroupsHtml = badgeGroupOrder.map(function(g){
-      var items = BADGES.filter(function(b){ return b.group===g; }).map(function(b){
-        var locked = !b.test();
-        // Locked cards still show the real, flavorful name (not "???") — the point is to
-        // preview what's coming and how close you are, same as Whoop surfacing "best so far."
-        return '<div class="badge-item '+(locked?"locked":"")+'">' +
-          '<span class="bic">'+(locked?lockIconSvg(26):b.ic)+'</span>' +
-          '<span class="btxt"><span class="btitle">'+b.title+'</span><span class="blbl">'+(locked?b.progress():b.label)+'</span></span>' +
+      var groupBadges = BADGES.filter(function(b){ return b.group===g; });
+      var earned = groupBadges.filter(function(b){ return b.test(); });
+      var next = groupBadges.filter(function(b){ return !b.test(); })[0];
+      var items = earned.map(function(b){
+        var justEarned = state.justEarnedBadgeIds && state.justEarnedBadgeIds.indexOf(b.id)!==-1;
+        return '<div class="badge-item '+(justEarned?"just-earned":"")+'">' +
+          '<span class="bic">'+b.ic+'</span>' +
+          '<span class="btxt"><span class="btitle">'+b.title+'</span><span class="blbl">'+b.label+'</span></span>' +
         '</div>';
-      }).join("");
+      }).join("") + (next ? (
+        '<div class="badge-item teaser">' +
+          '<span class="bic">'+mysteryIconSvg(28)+'</span>' +
+          '<span class="btxt"><span class="btitle">???</span><span class="blbl">'+next.progress()+'</span></span>' +
+        '</div>'
+      ) : "");
       return '<div class="badge-group"><div class="badge-group-title">'+g+'</div><div class="badge-grid">'+items+'</div></div>';
     }).join("");
-    var growthStages = EVOLUTION_STAGES.map(function(s, idx){
-      var locked = idx > stage;
-      return '<div class="growth-stage '+(idx===stage?"current":"")+' '+(locked?"locked":"")+'" title="'+s.req+'">' +
+    // Same "trophy case" philosophy as badges: reveal stages already reached, plus exactly
+    // ONE next-up teaser — never the full remaining evolution line, which used to spoil every
+    // future look and name at a glance. The teaser swaps the real face/name for a mystery icon
+    // but keeps the real streak count underneath, so progress is still honest, just not spoiled.
+    var growthStages = EVOLUTION_STAGES.slice(0, stage+1).map(function(s, idx){
+      var justEvolved = idx===stage && state.justEvolvedStage;
+      return '<div class="growth-stage '+(idx===stage?"current":"")+' '+(justEvolved?"just-evolved":"")+'" title="'+s.req+'">' +
         '<div class="growth-avatar">'+petFaceSvg(34, idx)+'</div>' +
         '<span class="glbl">'+s.label+'</span>' +
       '</div>';
-    }).join("");
+    }).join("") + (stage < EVOLUTION_STAGES.length-1 ? (
+      '<div class="growth-stage teaser">' +
+        '<div class="growth-avatar growth-avatar-teaser">'+mysteryIconSvg(16)+'</div>' +
+        '<span class="glbl">???</span>' +
+        '<span class="gprog">'+stageProgressCaption(stage+1)+'</span>' +
+      '</div>'
+    ) : "");
 
     el.innerHTML =
       '<h2 class="page-title">Buddy</h2>' +
-      '<div class="pet-stage"><div class="pet-body">'+petFaceSvg(108)+petAccessoryIcon(30)+'</div></div>' +
-      '<div class="card" style="text-align:center;">' +
-        '<div style="display:flex;justify-content:center;align-items:center;gap:8px;">' +
-          '<span style="font-weight:800;font-size:15px;color:var(--text-primary);">'+state.pet.name+'</span>' +
+      '<div class="pet-stage"><div class="pet-avatar-ring"><div class="pet-body">'+petFaceSvg(120)+petAccessoryIcon(32)+'</div></div></div>' +
+      '<div class="card pet-stage-card" style="text-align:center;">' +
+        '<div style="display:flex;justify-content:center;align-items:center;gap:9px;">' +
+          '<span style="font-weight:800;font-size:20px;color:var(--text-primary);">'+state.pet.name+'</span>' +
           '<span class="lvl">LV '+lvl+'</span>' +
         '</div>' +
-        '<div style="font-size:12px;color:var(--muted);margin-top:4px;">'+petStatusText()+'</div>' +
-        '<div class="xp-track" style="margin-top:10px;"><div class="xp-fill" style="width:'+xp+'%"></div></div>' +
+        '<div style="font-size:13px;color:var(--muted);margin-top:5px;">'+petStatusText()+'</div>' +
+        '<div class="xp-track" style="margin-top:12px;height:8px;"><div class="xp-fill" style="width:'+xp+'%"></div></div>' +
         '<div style="font-size:10px;color:var(--muted);margin-top:4px;">'+xp+' / 100 XP to level '+(lvl+1)+'</div>' +
       '</div>' +
       '<div class="ai-card" id="socialCard"><span class="ai-ic">'+buddyIconSvg(19)+'</span><div><div class="ai-title">Bloom Together</div><div class="ai-sub">Grow a streak with a friend — no scores shared, ever</div></div></div>' +
-      '<div class="card"><h3>Growth</h3><p>'+state.pet.name+' evolves as your <strong style="color:var(--text-primary);">longest-ever streak</strong> grows — never based on today alone, so a missed day never undoes progress. Stages are fixed and shown here up front, not random drops.</p><div class="growth-row">'+growthStages+'</div></div>' +
-      '<div class="card"><h3>Name</h3><input type="text" id="petNameInput" value="'+state.pet.name+'" maxlength="14"></div>' +
+      '<div class="card"><h3>Growth</h3><p>'+state.pet.name+' evolves as your <strong style="color:var(--text-primary);">longest-ever streak</strong> grows — never based on today alone, so a missed day never undoes progress. What '+state.pet.name+' looks like next stays a surprise until you get there — the streak you need is never hidden, just the reveal.</p><div class="growth-row">'+growthStages+'</div></div>' +
+      '<div class="card"><h3>Name</h3><div class="input-with-icon"><span class="iic">'+sparkleIconSvg(16)+'</span><input type="text" id="petNameInput" value="'+state.pet.name+'" maxlength="14"></div></div>' +
       '<div class="card"><h3>Decorate</h3><p>Color</p><div class="swatch-row">'+colorSwatches+'</div><p style="margin-top:12px;">Accessories — unlock with longer streaks</p><div class="acc-row">'+accBtns+'</div></div>' +
       '<div class="card"><h3>Badges — '+earnedBadgeCount+' / '+BADGES.length+' earned</h3><p>Different goals, different badges — check-ins, training logged, journaling, coming back after a miss, and Talk to Bloom all have their own.</p>'+badgeGroupsHtml+'</div>';
-
     var socialCard = document.getElementById("socialCard"); if(socialCard) socialCard.onclick = openSocial;
     document.getElementById("petNameInput").onchange = function(e){ state.pet.name = e.target.value || "Buddy"; render(); };
     el.querySelectorAll(".swatch[data-color]").forEach(function(s){ s.onclick=function(){ state.pet.color=s.getAttribute("data-color"); render(); }; });
     el.querySelectorAll(".acc-btn").forEach(function(b){ b.onclick=function(){ if(b.disabled) return; state.pet.accessory=b.getAttribute("data-acc"); render(); }; });
+    // The pop-in animations should play exactly once, right when earned — clear the flags
+    // after this render paints so scrolling back to Buddy later doesn't replay them.
+    if(state.justEarnedBadgeIds && state.justEarnedBadgeIds.length) state.justEarnedBadgeIds = [];
+    if(state.justEvolvedStage) state.justEvolvedStage = false;
   }
 
   // ---------- Settings ----------
@@ -2172,12 +2242,16 @@
     if(justUnlockedAcc) milestoneMsg += " New accessory unlocked!";
     var newlyEarnedBadges = BADGES.filter(function(b){ return earnedBadgesBefore.indexOf(b.id)===-1 && b.test(); });
     if(newlyEarnedBadges.length) milestoneMsg += (newlyEarnedBadges.length===1 ? " New badge earned — "+newlyEarnedBadges[0].label+"!" : " "+newlyEarnedBadges.length+" new badges earned!");
+    // Flags the freshly-earned medal(s) so the Buddy screen's badge grid can pop them in —
+    // this is the "reveal" moment that naturally exposes the next mystery teaser right after.
+    if(newlyEarnedBadges.length) state.justEarnedBadgeIds = newlyEarnedBadges.map(function(b){ return b.id; });
     render();
     // A stage change is its own moment — surface it distinctly rather than folding it into
     // the routine points toast, since this is the "visible growth" payoff the whole Buddy
     // system is built around.
     if(stageAfter > stageBefore){
       var newStage = EVOLUTION_STAGES[stageAfter];
+      state.justEvolvedStage = true;
       showToast(state.pet.name+" evolved — "+newStage.label+" stage unlocked! Check the Buddy tab.", 4500);
     } else {
       showToast("+"+earned+" points · check-in logged."+milestoneMsg, 3600);
@@ -2424,6 +2498,7 @@
     if(zone && zone.name==="Elevated") msg += " That's a notable jump from your recent average.";
     var newlyEarnedBadges = BADGES.filter(function(b){ return earnedBadgesBefore.indexOf(b.id)===-1 && b.test(); });
     if(newlyEarnedBadges.length) msg += (newlyEarnedBadges.length===1 ? " New badge earned — "+newlyEarnedBadges[0].label+"!" : " "+newlyEarnedBadges.length+" new badges earned!");
+    if(newlyEarnedBadges.length) state.justEarnedBadgeIds = newlyEarnedBadges.map(function(b){ return b.id; });
     render();
     showToast(msg, 4200);
   }
