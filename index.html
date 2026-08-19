@@ -209,6 +209,11 @@
   .reminder-item { display:flex; align-items:center; justify-content:space-between; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin-top: 8px; font-size: 12px; color: var(--text-primary); }
   .reminder-item button { background:none; border:none; color:var(--critical); font-size:14px; cursor:pointer; }
   .add-btn { margin-top: 10px; width: 100%; padding: 10px; border-radius: 12px; border: 1px dashed var(--muted); background: none; color: var(--text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; }
+  /* Inline reminder form — replaces native prompt() dialogs, which look/feel like a desktop
+     browser artifact and would never appear in a real mobile app. */
+  .reminder-form { margin-top: 10px; display:flex; flex-direction:column; }
+  .reminder-form input[type="text"] { margin-top: 0; }
+  .reminder-form input[type="time"] { margin-top: 8px; width: 100%; box-sizing: border-box; }
 
   /* Buddy / pet page */
   .pet-stage { display: flex; align-items: center; justify-content: center; padding: 14px 0 8px; }
@@ -700,6 +705,13 @@
     {id:"peakstate", group:"Personal Best", title:"Peak State", ic:badgeIconSvg(BADGE_COLORS.platinum, 36), label:"A day scoring 90+ across all 4 pillars",
       test:function(){ return bestCompositeScore()>=90; }, progress:function(){ return "Best day so far: "+bestCompositeScore()+"/90"; }}
   ];
+  // Computed rather than hardcoded so copy (e.g. the Settings "Rewards" summary) never drifts
+  // out of sync with BADGES again if a category is added or removed later.
+  function badgeCategoryCount(){
+    var groups = [];
+    BADGES.forEach(function(b){ if(groups.indexOf(b.group)===-1) groups.push(b.group); });
+    return groups.length;
+  }
 
   // ---- Buddy evolution — grounded in real behavior-change research rather than an
   // arbitrary points ladder:
@@ -863,6 +875,8 @@
     // Transient — never persisted. Set right when Buddy evolves to a new stage so the
     // Growth card's current-stage avatar can play the same pop-in reveal as badges.
     justEvolvedStage: false,
+    // Transient — never persisted. Toggles the inline "add reminder" form in Settings.
+    addingReminder: false,
     insightsSubTab: "patterns", insightsData: null, actionIdx: {energy:0, stress:0, sleep:0, motivation:0},
     // Talk to Bloom lives only in memory, not localStorage — it's the one place someone
     // might type something quite personal, so it doesn't stick around after a refresh.
@@ -1219,11 +1233,11 @@
   // Tries the real backend (server.js, see the bloom-backend folder) first, which calls
   // the actual Claude API. If it's not running/reachable, falls back to the local
   // rule-based version so this file still works as a standalone demo on its own.
-  var AI_BACKEND_URL = "https://bloom-backend-rv0g.onrender.com/api/insights";
-  var AI_FOLLOWUP_URL = "https://bloom-backend-rv0g.onrender.com/api/followup";
-  var AI_TALK_URL = "https://bloom-backend-rv0g.onrender.com/api/talk";
+  var AI_BACKEND_URL = "https://bloom-backend-1-9h22.onrender.com/api/insights";
+  var AI_FOLLOWUP_URL = "https://bloom-backend-1-9h22.onrender.com/api/followup";
+  var AI_TALK_URL = "https://bloom-backend-1-9h22.onrender.com/api/talk";
   var TALK_DAILY_LIMIT = 25; // lightweight, disclosed cost/abuse guard — not a punishment, just a practical cap on a real paid API key
-  var SOCIAL_BASE_URL = "https://bloom-backend-rv0g.onrender.com/api/social";
+  var SOCIAL_BASE_URL = "https://bloom-backend-1-9h22.onrender.com/api/social";
 
   // ---------- Check-in "what's contributing?" follow-up, Claude-generated per answer ----------
   // Fired the moment an athlete picks a value for a pillar. Claude decides the question AND
@@ -2019,8 +2033,16 @@
       '<div class="card">' +
         '<div class="row"><div><div class="lbl">AI pattern alerts</div><div class="desc">Flag concerning trends across your 4 pillars and show a wellbeing summary (see Home)</div></div><label class="switch"><input type="checkbox" id="aiToggle" '+(state.settings.aiAlerts?"checked":"")+'><span class="toggle-slider"></span></label></div>' +
       '</div>' +
-      '<div class="card"><h3>Reminders after activities</h3><p>Tie a reminder to practice, games, or your schedule.</p>'+remindersHtml+'<button class="add-btn" id="addReminderBtn">+ Add reminder</button></div>' +
-      '<div class="card"><h3>Rewards</h3><p>'+state.pet.name+' evolves through 8 growth stages as your longest-ever streak grows (see the Growth card on the Buddy tab for exact thresholds) — that\'s permanent and never undone by a missed day. 8 accessories unlock the same way, from a 3-day streak up through a 66-day one. Streak milestones also add bonus points: 5-day (+25 pts), 10-day (+50 pts). Beyond streaks, 10 badges across 5 categories — check-ins, training logged, journaling, coming back after a missed day, and Talk to Bloom — reward different ways of showing up, not just showing up every single day.</p></div>' +
+      '<div class="card"><h3>Reminders after activities</h3><p>Tie a reminder to practice, games, or your schedule.</p>'+remindersHtml+
+        (state.addingReminder ?
+          '<div class="reminder-form">' +
+            '<input type="text" id="reminderLabelInput" placeholder="Remind me after…" value="'+(state.addingReminder.label||"")+'" maxlength="40">' +
+            '<input type="time" id="reminderTimeInput" value="'+(state.addingReminder.time||"17:30")+'">' +
+            '<div class="modal-actions" style="margin-top:8px;"><button class="btn-secondary" id="cancelReminderBtn">Cancel</button><button class="btn-primary" id="saveReminderBtn">Add reminder</button></div>' +
+          '</div>'
+        : '<button class="add-btn" id="addReminderBtn">+ Add reminder</button>') +
+      '</div>' +
+      '<div class="card"><h3>Rewards</h3><p>'+state.pet.name+' evolves through '+EVOLUTION_STAGES.length+' growth stages as your longest-ever streak grows (see the Growth card on the Buddy tab for exact thresholds) — that\'s permanent and never undone by a missed day. '+(ACCESSORIES.length-1)+' accessories unlock the same way, from a '+ACCESSORIES[1].unlockStreak+'-day streak up through a '+ACCESSORIES[ACCESSORIES.length-1].unlockStreak+'-day one. Streak milestones also add bonus points: 5-day (+25 pts), 10-day (+50 pts). Beyond streaks, '+BADGES.length+' badges across '+badgeCategoryCount()+' categories — check-ins, training logged, journaling, coming back after a missed day, Talk to Bloom, and personal bests — reward different ways of showing up, not just showing up every single day.</p></div>' +
       '<button class="btn-secondary" style="width:100%;" id="testNotifBtn">Send a test reminder</button>';
     el.querySelectorAll("[data-theme-opt]").forEach(function(b){
       b.onclick = function(){ state.settings.theme = b.getAttribute("data-theme-opt"); applyTheme(); render(); };
@@ -2029,7 +2051,29 @@
     document.getElementById("smartToggle").onchange=function(e){ state.settings.smartReminders=e.target.checked; render(); };
     document.getElementById("aiToggle").onchange=function(e){ state.settings.aiAlerts=e.target.checked; render(); };
     document.getElementById("dailyTime").onchange=function(e){ state.settings.dailyTime=e.target.value; render(); };
-    document.getElementById("addReminderBtn").onclick=function(){ var label=prompt("Remind me after…","After practice"); if(!label) return; var time=prompt("What time? (e.g. 17:30)","17:30")||"17:30"; state.settings.customReminders.push({label:label,time:time}); render(); };
+    // Inline form instead of native prompt() dialogs — prompt() looks and feels like a
+    // desktop browser artifact, not something a real mobile app would ever show.
+    var addReminderBtn = document.getElementById("addReminderBtn");
+    if(addReminderBtn) addReminderBtn.onclick=function(){ state.addingReminder = {label:"", time:"17:30"}; render(); };
+    var reminderLabelInput = document.getElementById("reminderLabelInput");
+    if(reminderLabelInput){
+      // Only steal focus when the form just opened (empty label) — avoids yanking focus
+      // away mid-type if something unrelated elsewhere in Settings triggers a re-render.
+      if(!state.addingReminder.label) reminderLabelInput.focus();
+      reminderLabelInput.oninput = function(e){ state.addingReminder.label = e.target.value; };
+    }
+    var reminderTimeInput = document.getElementById("reminderTimeInput");
+    if(reminderTimeInput) reminderTimeInput.onchange = function(e){ state.addingReminder.time = e.target.value; };
+    var cancelReminderBtn = document.getElementById("cancelReminderBtn");
+    if(cancelReminderBtn) cancelReminderBtn.onclick = function(){ state.addingReminder = false; render(); };
+    var saveReminderBtn = document.getElementById("saveReminderBtn");
+    if(saveReminderBtn) saveReminderBtn.onclick = function(){
+      var label = (state.addingReminder.label || "").trim();
+      if(!label){ if(reminderLabelInput) reminderLabelInput.focus(); return; }
+      state.settings.customReminders.push({label:label, time: state.addingReminder.time || "17:30"});
+      state.addingReminder = false;
+      render();
+    };
     el.querySelectorAll("[data-remove]").forEach(function(b){ b.onclick=function(){ state.settings.customReminders.splice(parseInt(b.getAttribute("data-remove"),10),1); render(); }; });
     document.getElementById("testNotifBtn").onclick=function(){ if(!state.settings.notifications){ showToast("Turn on notifications first"); return; } showToast("Time for your check-in"); };
   }
